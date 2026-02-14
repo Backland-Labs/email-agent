@@ -1,46 +1,94 @@
-# Agent-Ready TypeScript Template
+# Gmail Insights Agent
 
-A minimal, strict TypeScript repository template designed for high agent effectiveness.
+A Bun + TypeScript agent that reads unread Gmail messages and streams structured insights over an AG-UI-compatible SSE endpoint.
 
-It scaffolds the four agent-ready principles:
+## What It Does
 
-1. 100% line coverage workflow
-2. Thoughtful file structure
-3. End-to-end type safety
-4. Automated enforcement (local + CI)
+- Connects to Gmail with OAuth2 (single-user env-based credentials)
+- Fetches up to 20 unread emails from INBOX
+- Extracts structured insight per email (priority, sentiment, action items, relationship, urgency)
+- Streams markdown insights as AG-UI events for `agent-ui`
 
-## Included
+## Prerequisites
 
-- Strict TypeScript (`tsconfig.json`)
-- Vitest with coverage thresholds locked to 100%
-- ESLint + Prettier + lint-staged
-- Git hooks via `simple-git-hooks`
-- CI workflow that runs the full quality gate
-- Structure checks for catch-all filenames and oversized files
-- A reusable checklist in `docs/checklist.md`
+- Bun 1.1+
+- Google Cloud project with Gmail API enabled
+- OAuth consent screen configured
+- OAuth client credentials (Web application)
+- Anthropic API key
 
-## Quick Start
+## Setup
+
+1. Install dependencies:
 
 ```bash
 bun install
-bun run check
 ```
 
-## Scripts
+2. Create a local env file:
 
-- `bun run build` - build `src` into `dist`
-- `bun run typecheck` - run TypeScript checks with no emit
-- `bun run lint` - run ESLint
-- `bun run format` - apply Prettier
-- `bun run format:check` - verify formatting
-- `bun run test` - run tests with coverage
-- `bun run test:watch` - run tests in watch mode
-- `bun run structure:check` - enforce file naming and size rules
-- `bun run opencode:append-thread` - append latest Opencode session transcript to a PR comment
-- `bun run check` - run structure, format, lint, typecheck, and tests
+```bash
+cp .env.example .env.local
+```
 
-## Suggested Next Steps
+3. Fill in:
 
-1. Rename `package.json` fields for your project.
-2. Replace the sample domain in `src/domain` and `src/services`.
-3. Keep coverage at 100% as you build features.
+- `GMAIL_CLIENT_ID`
+- `GMAIL_CLIENT_SECRET`
+- `ANTHROPIC_API_KEY`
+
+4. Generate your Gmail refresh token:
+
+```bash
+bun run scripts/setup-gmail-oauth.ts
+```
+
+The script opens the Google consent screen, waits for the callback on `http://localhost:3456/oauth2callback`, then prints `GMAIL_REFRESH_TOKEN`.
+
+5. Add the printed refresh token to `.env.local`:
+
+```bash
+GMAIL_REFRESH_TOKEN=...
+```
+
+## Running the Agent
+
+Development:
+
+```bash
+bun run dev
+```
+
+Production mode:
+
+```bash
+bun run start
+```
+
+Default port is `3001` (override with `PORT`).
+
+## Endpoints
+
+- `GET /health` -> `{ "status": "ok" }`
+- `POST /agent` -> AG-UI SSE stream (`RUN_STARTED`, text events, `RUN_FINISHED`)
+
+## Connect to agent-ui
+
+In `../agent-ui/agents.config.json`, add:
+
+```json
+{
+  "id": "gmail-insights-agent",
+  "name": "Gmail Insights Agent",
+  "endpoint_url": "http://localhost:3001/agent",
+  "description": "Reads unread Gmail and streams structured insights"
+}
+```
+
+## Quality Checks
+
+Run the full local gate:
+
+```bash
+bun run check
+```
