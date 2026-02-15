@@ -10,6 +10,7 @@ describe("EmailCategory", () => {
   it("parses valid category values", () => {
     expect(emailCategorySchema.parse("personal")).toBe("personal");
     expect(emailCategorySchema.parse("business")).toBe("business");
+    expect(emailCategorySchema.parse("automated")).toBe("automated");
     expect(emailCategorySchema.parse("newsletter_or_spam")).toBe("newsletter_or_spam");
   });
 
@@ -61,10 +62,16 @@ describe("compareByCategory", () => {
     expect(compareByCategory(personal, business)).toBeLessThan(0);
   });
 
-  it("sorts business before newsletter_or_spam", () => {
+  it("sorts business before automated", () => {
     const business: EmailInsight = { summary: "a", category: "business" };
+    const automated: EmailInsight = { summary: "b", category: "automated" };
+    expect(compareByCategory(business, automated)).toBeLessThan(0);
+  });
+
+  it("sorts automated before newsletter_or_spam", () => {
+    const automated: EmailInsight = { summary: "a", category: "automated" };
     const spam: EmailInsight = { summary: "b", category: "newsletter_or_spam" };
-    expect(compareByCategory(business, spam)).toBeLessThan(0);
+    expect(compareByCategory(automated, spam)).toBeLessThan(0);
   });
 
   it("sorts personal before newsletter_or_spam", () => {

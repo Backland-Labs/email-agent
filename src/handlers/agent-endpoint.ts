@@ -1,8 +1,12 @@
 import { google, type Auth } from "googleapis";
 
-import { compareByCategory, type EmailInsight } from "../domain/email-insight.js";
+import {
+  compareByCategory,
+  type EmailCategory,
+  type EmailInsight
+} from "../domain/email-insight.js";
 import type { EmailMetadata } from "../domain/email-metadata.js";
-import { formatInsightMarkdown } from "./format-insight-markdown.js";
+import { formatCategoryHeader, formatInsightMarkdown } from "./format-insight-markdown.js";
 import { extractEmailInsight } from "../services/ai/extract-email-insight.js";
 import { createAuthClient } from "../services/gmail/create-auth-client.js";
 import {
@@ -140,7 +144,28 @@ export async function handleAgentEndpoint(
 
         results.sort((a, b) => compareByCategory(a.insight, b.insight));
 
+        if (results.length > 0) {
+          controller.enqueue(
+            encodeTextMessageContent({
+              messageId,
+              delta: formatDigestIntro(results.map((r) => r.insight))
+            })
+          );
+        }
+
+        let currentCategory: EmailCategory | null = null;
+
         for (const { email, insight } of results) {
+          if (insight.category !== currentCategory) {
+            currentCategory = insight.category;
+            controller.enqueue(
+              encodeTextMessageContent({
+                messageId,
+                delta: formatCategoryHeader(currentCategory)
+              })
+            );
+          }
+
           controller.enqueue(
             encodeTextMessageContent({
               messageId,
@@ -252,4 +277,37 @@ function createDefaultDependencies(): AgentEndpointDependencies {
 
 function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unknown error";
+}
+
+export function formatDigestIntro(insights: EmailInsight[]): string {
+  const counts: Record<EmailCategory, number> = {
+    personal: 0,
+    business: 0,
+    automated: 0,
+    newsletter_or_spam: 0
+  };
+
+  for (const insight of insights) {
+    counts[insight.category] += 1;
+  }
+
+  const parts: string[] = [];
+
+  if (counts.personal > 0) {
+    parts.push(`${String(counts.personal)} personal`);
+  }
+
+  if (counts.business > 0) {
+    parts.push(`${String(counts.business)} business`);
+  }
+
+  if (counts.automated > 0) {
+    parts.push(`${String(counts.automated)} automated`);
+  }
+
+  if (counts.newsletter_or_spam > 0) {
+    parts.push(`${String(counts.newsletter_or_spam)} newsletter/spam`);
+  }
+
+  return `# Inbox Digest\n\n${String(insights.length)} unread emails: ${parts.join(", ")}.\n\n`;
 }

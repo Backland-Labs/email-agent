@@ -117,6 +117,7 @@ describe("buildInsightPrompt", () => {
 
     expect(prompt.system).toContain("personal");
     expect(prompt.system).toContain("business");
+    expect(prompt.system).toContain("automated");
     expect(prompt.system).toContain("newsletter_or_spam");
   });
 });

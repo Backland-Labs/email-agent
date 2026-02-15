@@ -227,7 +227,7 @@ describe("handleAgentEndpoint", () => {
     expect(body).toContain("Lead is asking you to complete outstanding tasks.");
   });
 
-  it("sorts results by category: personal, business, newsletter_or_spam", async () => {
+  it("sorts results by category: personal, business, automated, newsletter_or_spam", async () => {
     const dependencies = createDependencies();
 
     const spamEmail = createEmailMetadata({
@@ -263,14 +263,26 @@ describe("handleAgentEndpoint", () => {
       bodyText: "Please review the Q3 financials"
     });
 
+    const automatedEmail = createEmailMetadata({
+      id: "email-automated",
+      threadId: "thread-automated",
+      subject: "CI failed",
+      from: "noreply@github.com",
+      to: "you@example.com",
+      date: "Sat, 14 Feb 2026 12:03:00 +0000",
+      snippet: "Build failed",
+      bodyText: "CI pipeline failed on main branch"
+    });
+
     dependencies.fetchUnreadEmails = vi.fn(() =>
-      Promise.resolve([spamEmail, personalEmail, businessEmail])
+      Promise.resolve([spamEmail, personalEmail, automatedEmail, businessEmail])
     );
 
     dependencies.extractEmailInsight = vi
       .fn()
       .mockResolvedValueOnce(createInsight("newsletter_or_spam"))
       .mockResolvedValueOnce(createInsight("personal"))
+      .mockResolvedValueOnce(createInsight("automated"))
       .mockResolvedValueOnce(createInsight("business"));
 
     const response = await handleAgentEndpoint(createRequest(), dependencies);
@@ -278,13 +290,16 @@ describe("handleAgentEndpoint", () => {
 
     const personalIndex = body.indexOf("Dinner tonight?");
     const businessIndex = body.indexOf("Q3 report");
+    const automatedIndex = body.indexOf("CI failed");
     const spamIndex = body.indexOf("Weekly digest");
 
     expect(personalIndex).toBeGreaterThan(-1);
     expect(businessIndex).toBeGreaterThan(-1);
+    expect(automatedIndex).toBeGreaterThan(-1);
     expect(spamIndex).toBeGreaterThan(-1);
     expect(personalIndex).toBeLessThan(businessIndex);
-    expect(businessIndex).toBeLessThan(spamIndex);
+    expect(businessIndex).toBeLessThan(automatedIndex);
+    expect(automatedIndex).toBeLessThan(spamIndex);
   });
 
   it("stops processing email insights when request is already aborted", async () => {

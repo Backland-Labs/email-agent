@@ -1,8 +1,13 @@
 import { z } from "zod";
 
-export type EmailCategory = "personal" | "business" | "newsletter_or_spam";
+export type EmailCategory = "personal" | "business" | "automated" | "newsletter_or_spam";
 
-export const emailCategorySchema = z.enum(["personal", "business", "newsletter_or_spam"]);
+export const emailCategorySchema = z.enum([
+  "personal",
+  "business",
+  "automated",
+  "newsletter_or_spam"
+]);
 
 export type EmailInsight = {
   summary: string;
@@ -17,7 +22,8 @@ export const emailInsightSchema = z.object({
 const CATEGORY_SORT_ORDER: Record<EmailCategory, number> = {
   personal: 0,
   business: 1,
-  newsletter_or_spam: 2
+  automated: 2,
+  newsletter_or_spam: 3
 };
 
 export function compareByCategory(a: EmailInsight, b: EmailInsight): number {
