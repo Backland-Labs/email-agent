@@ -1,116 +1,87 @@
 import { describe, it, expect } from "vitest";
 import {
-  insightPrioritySchema,
-  insightSentimentSchema,
-  actionItemSchema,
-  emailInsightSchema
+  emailCategorySchema,
+  emailInsightSchema,
+  compareByCategory
 } from "../../src/domain/email-insight.js";
-import type { InsightPriority, InsightSentiment } from "../../src/domain/email-insight.js";
+import type { EmailInsight } from "../../src/domain/email-insight.js";
 
-describe("InsightPriority", () => {
-  it("parses valid priority values", () => {
-    expect(insightPrioritySchema.parse("high")).toBe("high");
-    expect(insightPrioritySchema.parse("medium")).toBe("medium");
-    expect(insightPrioritySchema.parse("low")).toBe("low");
+describe("EmailCategory", () => {
+  it("parses valid category values", () => {
+    expect(emailCategorySchema.parse("personal")).toBe("personal");
+    expect(emailCategorySchema.parse("business")).toBe("business");
+    expect(emailCategorySchema.parse("newsletter_or_spam")).toBe("newsletter_or_spam");
   });
 
-  it("throws for invalid priority values", () => {
-    expect(() => insightPrioritySchema.parse("critical")).toThrow();
-    expect(() => insightPrioritySchema.parse("")).toThrow();
-  });
-});
-
-describe("InsightSentiment", () => {
-  it("parses valid sentiment values", () => {
-    expect(insightSentimentSchema.parse("positive")).toBe("positive");
-    expect(insightSentimentSchema.parse("neutral")).toBe("neutral");
-    expect(insightSentimentSchema.parse("negative")).toBe("negative");
-    expect(insightSentimentSchema.parse("urgent")).toBe("urgent");
-  });
-
-  it("throws for invalid sentiment values", () => {
-    expect(() => insightSentimentSchema.parse("excited")).toThrow();
-    expect(() => insightSentimentSchema.parse("")).toThrow();
-  });
-});
-
-describe("ActionItem", () => {
-  it("parses valid action item", () => {
-    const input = {
-      task: "Review the document",
-      owner: "you",
-      deadline: "Feb 15"
-    };
-    const result = actionItemSchema.parse(input);
-    expect(result.task).toBe("Review the document");
-    expect(result.owner).toBe("you");
-    expect(result.deadline).toBe("Feb 15");
-  });
-
-  it("allows optional deadline", () => {
-    const input = {
-      task: "Review the document",
-      owner: "you"
-    };
-    const result = actionItemSchema.parse(input);
-    expect(result.task).toBe("Review the document");
-    expect(result.deadline).toBeUndefined();
-  });
-
-  it("throws for missing task", () => {
-    const input = {
-      owner: "you"
-    };
-    expect(() => actionItemSchema.parse(input)).toThrow();
+  it("throws for invalid category values", () => {
+    expect(() => emailCategorySchema.parse("urgent")).toThrow();
+    expect(() => emailCategorySchema.parse("")).toThrow();
   });
 });
 
 describe("EmailInsight", () => {
   it("parses full valid input", () => {
     const input = {
-      priority: "high" as InsightPriority,
-      sentiment: "urgent" as InsightSentiment,
-      actionItems: [{ task: "Review document", owner: "you", deadline: "Feb 15" }],
-      relationshipContext: "Manager",
-      urgencySignals: ["need this by EOD Friday", "please prioritize"]
+      summary: "Requesting a budget review by end of week.",
+      category: "personal"
     };
     const result = emailInsightSchema.parse(input);
-    expect(result.priority).toBe("high");
-    expect(result.sentiment).toBe("urgent");
-    expect(result.actionItems).toHaveLength(1);
-    expect(result.relationshipContext).toBe("Manager");
-    expect(result.urgencySignals).toHaveLength(2);
+    expect(result.summary).toBe("Requesting a budget review by end of week.");
+    expect(result.category).toBe("personal");
   });
 
-  it("allows empty action items and urgency signals", () => {
+  it("throws for empty summary", () => {
     const input = {
-      priority: "low" as InsightPriority,
-      sentiment: "neutral" as InsightSentiment,
-      actionItems: [],
-      relationshipContext: "Colleague",
-      urgencySignals: []
+      summary: "",
+      category: "business"
     };
-    const result = emailInsightSchema.parse(input);
-    expect(result.actionItems).toHaveLength(0);
-    expect(result.urgencySignals).toHaveLength(0);
+    expect(() => emailInsightSchema.parse(input)).toThrow();
   });
 
-  it("throws for invalid priority", () => {
+  it("throws for invalid category", () => {
     const input = {
-      priority: "super critical",
-      sentiment: "neutral",
-      actionItems: [],
-      relationshipContext: "Colleague",
-      urgencySignals: []
+      summary: "A valid summary.",
+      category: "critical"
     };
     expect(() => emailInsightSchema.parse(input)).toThrow();
   });
 
   it("throws for missing required fields", () => {
     const input = {
-      priority: "high"
-      // missing other fields
+      summary: "Only summary"
     };
     expect(() => emailInsightSchema.parse(input)).toThrow();
+  });
+});
+
+describe("compareByCategory", () => {
+  it("sorts personal before business", () => {
+    const personal: EmailInsight = { summary: "a", category: "personal" };
+    const business: EmailInsight = { summary: "b", category: "business" };
+    expect(compareByCategory(personal, business)).toBeLessThan(0);
+  });
+
+  it("sorts business before newsletter_or_spam", () => {
+    const business: EmailInsight = { summary: "a", category: "business" };
+    const spam: EmailInsight = { summary: "b", category: "newsletter_or_spam" };
+    expect(compareByCategory(business, spam)).toBeLessThan(0);
+  });
+
+  it("sorts personal before newsletter_or_spam", () => {
+    const personal: EmailInsight = { summary: "a", category: "personal" };
+    const spam: EmailInsight = { summary: "b", category: "newsletter_or_spam" };
+    expect(compareByCategory(personal, spam)).toBeLessThan(0);
+  });
+
+  it("returns zero for same category", () => {
+    const a: EmailInsight = { summary: "a", category: "business" };
+    const b: EmailInsight = { summary: "b", category: "business" };
+    expect(compareByCategory(a, b)).toBe(0);
+  });
+
+  it("returns positive when first is lower priority", () => {
+    const spam: EmailInsight = { summary: "a", category: "newsletter_or_spam" };
+    const personal: EmailInsight = { summary: "b", category: "personal" };
+    expect(compareByCategory(spam, personal)).toBeGreaterThan(0);
   });
 });

@@ -25,6 +25,24 @@ describe("buildInsightPrompt", () => {
     expect(prompt.user).toContain("Please review the attached planning notes.");
   });
 
+  it("does not include email ID or thread ID in user prompt", () => {
+    const email = createEmailMetadata({
+      id: "email-1",
+      threadId: "thread-1",
+      subject: "Test",
+      from: "sender@example.com",
+      to: "recipient@example.com",
+      date: "Sat, 14 Feb 2026 11:00:00 +0000",
+      snippet: "Test",
+      bodyText: "Body"
+    });
+
+    const prompt = buildInsightPrompt(email);
+
+    expect(prompt.user).not.toContain("Email ID:");
+    expect(prompt.user).not.toContain("Thread ID:");
+  });
+
   it("handles empty body text gracefully", () => {
     const email = createEmailMetadata({
       id: "email-2",
@@ -65,7 +83,7 @@ describe("buildInsightPrompt", () => {
     expect(truncatedBody.length).toBe(4000);
   });
 
-  it("includes executive assistant role instruction", () => {
+  it("includes triaging role instruction mentioning Max", () => {
     const email = createEmailMetadata({
       id: "email-4",
       threadId: "thread-4",
@@ -80,5 +98,25 @@ describe("buildInsightPrompt", () => {
     const prompt = buildInsightPrompt(email);
 
     expect(prompt.system.toLowerCase()).toContain("executive assistant");
+    expect(prompt.system).toContain("Max");
+  });
+
+  it("includes category classification instructions", () => {
+    const email = createEmailMetadata({
+      id: "email-5",
+      threadId: "thread-5",
+      subject: "Category check",
+      from: "sender@example.com",
+      to: "recipient@example.com",
+      date: "Sat, 14 Feb 2026 11:04:00 +0000",
+      snippet: "Category content",
+      bodyText: "Check category instruction"
+    });
+
+    const prompt = buildInsightPrompt(email);
+
+    expect(prompt.system).toContain("personal");
+    expect(prompt.system).toContain("business");
+    expect(prompt.system).toContain("newsletter_or_spam");
   });
 });

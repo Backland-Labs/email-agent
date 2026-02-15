@@ -1,7 +1,7 @@
 import { RunAgentInputSchema, type RunAgentInput } from "@ag-ui/core";
 import { google, type Auth } from "googleapis";
 
-import type { EmailInsight } from "../domain/email-insight.js";
+import { compareByCategory, type EmailInsight } from "../domain/email-insight.js";
 import type { EmailMetadata } from "../domain/email-metadata.js";
 import { formatInsightMarkdown } from "./format-insight-markdown.js";
 import { extractEmailInsight } from "../services/ai/extract-email-insight.js";
@@ -119,6 +119,8 @@ export async function handleAgentEndpoint(
           );
         }
 
+        const results: { email: EmailMetadata; insight: EmailInsight }[] = [];
+
         for (const email of unreadEmails) {
           if (request.signal.aborted) {
             aborted = true;
@@ -128,18 +130,23 @@ export async function handleAgentEndpoint(
           try {
             const insight = await dependencies.extractEmailInsight(dependencies.model, email);
             generatedInsightCount += 1;
-
-            controller.enqueue(
-              encodeTextMessageContent({
-                messageId,
-                delta: formatInsightMarkdown(email, insight)
-              })
-            );
+            results.push({ email, insight });
           } catch (error) {
             failedInsightCount += 1;
             lastInsightFailure = error;
             continue;
           }
+        }
+
+        results.sort((a, b) => compareByCategory(a.insight, b.insight));
+
+        for (const { email, insight } of results) {
+          controller.enqueue(
+            encodeTextMessageContent({
+              messageId,
+              delta: formatInsightMarkdown(email, insight)
+            })
+          );
         }
 
         if (failedInsightCount > 0) {

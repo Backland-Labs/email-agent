@@ -9,11 +9,8 @@ import {
 } from "../../../src/services/gmail/fetch-unread-emails.js";
 
 const DEFAULT_INSIGHT: EmailInsight = {
-  priority: "medium",
-  sentiment: "neutral",
-  actionItems: [],
-  relationshipContext: "Unknown",
-  urgencySignals: []
+  summary: "A routine quarterly update.",
+  category: "business"
 };
 
 await runSuccessScenario();

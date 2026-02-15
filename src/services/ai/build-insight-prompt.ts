@@ -14,11 +14,13 @@ export function buildInsightPrompt(email: EmailMetadata): InsightPrompt {
 
   return {
     system:
-      "You are an executive assistant that triages email for a busy professional. " +
-      "Extract structured insights with clear priority, sentiment, action items, and relationship context.",
+      "You are an executive assistant triaging email for Max. " +
+      "For each email, write one concise sentence summarizing what the sender wants or is communicating. " +
+      "Classify the email into exactly one category: " +
+      '"personal" for messages addressed personally to Max, ' +
+      '"business" for work-related or professional messages, ' +
+      '"newsletter_or_spam" for bulk mail, marketing, or automated notifications.',
     user:
-      `Email ID: ${email.id}\n` +
-      `Thread ID: ${email.threadId}\n` +
       `Subject: ${email.subject}\n` +
       `From: ${email.from}\n` +
       `To: ${email.to}\n` +
