@@ -224,7 +224,7 @@ describe("handleDraftReplyEndpoint with default dependencies", () => {
     await response.text();
 
     expect(vi.mocked(createAuthClient)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(google.gmail)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(google.gmail)).toHaveBeenCalledTimes(2);
     expect(vi.mocked(fetchReplyContext)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(createReplyDraft)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(extractDraftReply)).toHaveBeenCalledWith(
