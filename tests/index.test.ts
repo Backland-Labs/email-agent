@@ -9,6 +9,7 @@ describe("index exports", () => {
     expect(typeof indexExports.createAuthClient).toBe("function");
     expect(typeof indexExports.parseGmailMessage).toBe("function");
     expect(typeof indexExports.fetchUnreadEmails).toBe("function");
+    expect(typeof indexExports.createReplyDraft).toBe("function");
     expect(typeof indexExports.buildInsightPrompt).toBe("function");
     expect(typeof indexExports.extractEmailInsight).toBe("function");
     expect(typeof indexExports.handleAgentEndpoint).toBe("function");

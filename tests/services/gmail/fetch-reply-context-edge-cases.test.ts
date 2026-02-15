@@ -107,4 +107,62 @@ describe("fetchReplyContext edge cases", () => {
 
     expect(context.contextMessages.map((message) => message.id)).toEqual(["target-email"]);
   });
+
+  it("uses Message-ID as references when References header is missing", async () => {
+    const targetMessage = createMessage("target-email", "thread-1");
+    targetMessage.payload.headers.push({ name: "Message-ID", value: "<target@example.com>" });
+
+    const gmailClient: GmailReplyContextApi = {
+      getMessage: () => Promise.resolve({ data: targetMessage }),
+      getThread: () => Promise.resolve({ data: { messages: [targetMessage] } })
+    };
+
+    const context = await fetchReplyContext(gmailClient, {
+      emailId: "target-email"
+    });
+
+    expect(context.replyHeaders.inReplyTo).toBe("<target@example.com>");
+    expect(context.replyHeaders.references).toBe("<target@example.com>");
+  });
+
+  it("keeps existing References header when it already contains Message-ID", async () => {
+    const targetMessage = createMessage("target-email", "thread-1");
+    targetMessage.payload.headers.push({ name: "Message-ID", value: "<target@example.com>" });
+    targetMessage.payload.headers.push({
+      name: "References",
+      value: "<ancestor@example.com> <target@example.com>"
+    });
+
+    const gmailClient: GmailReplyContextApi = {
+      getMessage: () => Promise.resolve({ data: targetMessage }),
+      getThread: () => Promise.resolve({ data: { messages: [targetMessage] } })
+    };
+
+    const context = await fetchReplyContext(gmailClient, {
+      emailId: "target-email"
+    });
+
+    expect(context.replyHeaders.inReplyTo).toBe("<target@example.com>");
+    expect(context.replyHeaders.references).toBe("<ancestor@example.com> <target@example.com>");
+  });
+
+  it("handles target messages without payload headers", async () => {
+    const gmailClient: GmailReplyContextApi = {
+      getMessage: () =>
+        Promise.resolve({
+          data: {
+            id: "target-email",
+            threadId: "thread-1",
+            snippet: "No payload"
+          }
+        }),
+      getThread: () => Promise.resolve({ data: { messages: [] } })
+    };
+
+    const context = await fetchReplyContext(gmailClient, {
+      emailId: "target-email"
+    });
+
+    expect(context.replyHeaders).toEqual({});
+  });
 });

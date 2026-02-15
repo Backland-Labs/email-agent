@@ -20,7 +20,7 @@ This catalog defines the structured events emitted by backend boundaries.
 | `agent.insights_failed`        | `warn`  | `event`, `requestId`, `runId`, `threadId`, `code`, `failedInsightCount`, `err`                                                   | One or more per-email extraction failures were skipped.           |
 | `draft_reply.run_started`      | `info`  | `event`, `requestId`, `runId`, `threadId`                                                                                        | Start of `/draft-reply` lifecycle.                                |
 | `draft_reply.context_degraded` | `warn`  | `event`, `requestId`, `runId`, `threadId`, `code`, `contextMessageCount`                                                         | Thread context was unavailable; proceeded with target email only. |
-| `draft_reply.run_completed`    | `info`  | `event`, `requestId`, `runId`, `threadId`, `durationMs`, `contextMessageCount`, `contextDegraded`, `riskFlags`                   | Canonical completion event for `/draft-reply`.                    |
+| `draft_reply.run_completed`    | `info`  | `event`, `requestId`, `runId`, `threadId`, `durationMs`, `contextMessageCount`, `contextDegraded`, `gmailDraftId`, `riskFlags`   | Canonical completion event for `/draft-reply`.                    |
 | `draft_reply.run_failed`       | `error` | `event`, `requestId`, `runId`, `threadId`, `durationMs`, `code`, `err`                                                           | Failure in the `/draft-reply` lifecycle.                          |
 | `gmail.fetch_started`          | `info`  | `event`, `requestId`, `runId`, `threadId`, `maxResults`, `concurrency`                                                           | Start of unread Gmail fetch boundary call.                        |
 | `gmail.fetch_completed`        | `info`  | `event`, `requestId`, `runId`, `threadId`, `durationMs`, `unreadCount`                                                           | Completion of unread Gmail fetch boundary call.                   |
@@ -36,6 +36,7 @@ This catalog defines the structured events emitted by backend boundaries.
 | `invalid_request`         | Incoming `/draft-reply` payload failed schema or JSON parsing.             |
 | `context_fetch_failed`    | `/draft-reply` failed while fetching target email or thread context.       |
 | `draft_generation_failed` | `/draft-reply` failed while generating structured draft output.            |
+| `draft_save_failed`       | `/draft-reply` failed while persisting the generated Gmail draft.          |
 | `request_aborted`         | The client aborted an active `/draft-reply` request.                       |
 | `context_degraded`        | Thread context was unavailable; drafting continued with target email only. |
 | `draft_reply_run_failed`  | Unexpected unclassified failure in `/draft-reply`.                         |

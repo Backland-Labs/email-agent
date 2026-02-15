@@ -66,6 +66,7 @@ describe("draftReplyRunResultSchema", () => {
   it("parses metadata for RUN_FINISHED.result", () => {
     const result = draftReplyRunResultSchema.parse({
       emailId: "email-1",
+      gmailDraftId: "draft-1",
       contextMessageCount: 4,
       contextDegraded: false,
       riskFlags: ["uncertain_facts"]
@@ -73,6 +74,7 @@ describe("draftReplyRunResultSchema", () => {
 
     expect(result).toEqual({
       emailId: "email-1",
+      gmailDraftId: "draft-1",
       contextMessageCount: 4,
       contextDegraded: false,
       riskFlags: ["uncertain_facts"]
@@ -83,6 +85,7 @@ describe("draftReplyRunResultSchema", () => {
     expect(() =>
       draftReplyRunResultSchema.parse({
         emailId: "email-1",
+        gmailDraftId: "draft-1",
         contextMessageCount: -1,
         contextDegraded: false,
         riskFlags: []

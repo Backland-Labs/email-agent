@@ -23,7 +23,9 @@ function createMessage(id: string, threadId: string) {
         { name: "Subject", value: `Subject ${id}` },
         { name: "From", value: "sender@example.com" },
         { name: "To", value: "recipient@example.com" },
-        { name: "Date", value: "Sat, 14 Feb 2026 10:00:00 +0000" }
+        { name: "Date", value: "Sat, 14 Feb 2026 10:00:00 +0000" },
+        { name: "Message-ID", value: `<${id}@example.com>` },
+        { name: "References", value: "<ancestor@example.com>" }
       ],
       body: {
         data: toBase64Url(`Body ${id}`)
@@ -68,6 +70,10 @@ describe("fetchReplyContext", () => {
     expect(context.threadId).toBe("thread-1");
     expect(context.contextDegraded).toBe(false);
     expect(context.contextMessageCount).toBe(3);
+    expect(context.replyHeaders.inReplyTo).toBe("<target-email@example.com>");
+    expect(context.replyHeaders.references).toBe(
+      "<ancestor@example.com> <target-email@example.com>"
+    );
     expect(context.contextMessages.map((message) => message.id)).toEqual([
       "thread-1",
       "target-email",

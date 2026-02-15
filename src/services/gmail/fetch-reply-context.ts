@@ -36,12 +36,18 @@ export type FetchReplyContextOptions = {
   maxContextMessages?: number;
 };
 
+export type ReplyHeaders = {
+  inReplyTo?: string;
+  references?: string;
+};
+
 export type ReplyContext = {
   email: EmailMetadata;
   threadId: string;
   contextMessages: EmailMetadata[];
   contextMessageCount: number;
   contextDegraded: boolean;
+  replyHeaders: ReplyHeaders;
 };
 
 export async function fetchReplyContext(
@@ -60,10 +66,11 @@ export async function fetchReplyContext(
     format: "full"
   });
   const targetEmail = parseGmailMessage(targetResponse.data);
+  const replyHeaders = extractReplyHeaders(targetResponse.data.payload?.headers ?? []);
   const threadId = options.threadId ?? targetEmail.threadId;
 
   if (threadId.length === 0) {
-    return createReplyContext(targetEmail, threadId, [targetEmail], true);
+    return createReplyContext(targetEmail, threadId, [targetEmail], true, replyHeaders);
   }
 
   try {
@@ -80,9 +87,9 @@ export async function fetchReplyContext(
       maxContextMessages
     );
 
-    return createReplyContext(targetEmail, threadId, boundedMessages, false);
+    return createReplyContext(targetEmail, threadId, boundedMessages, false, replyHeaders);
   } catch {
-    return createReplyContext(targetEmail, threadId, [targetEmail], true);
+    return createReplyContext(targetEmail, threadId, [targetEmail], true, replyHeaders);
   }
 }
 
@@ -90,15 +97,56 @@ function createReplyContext(
   email: EmailMetadata,
   threadId: string,
   contextMessages: EmailMetadata[],
-  contextDegraded: boolean
+  contextDegraded: boolean,
+  replyHeaders: ReplyHeaders
 ): ReplyContext {
   return {
     email,
     threadId,
     contextMessages,
     contextMessageCount: contextMessages.length,
-    contextDegraded
+    contextDegraded,
+    replyHeaders
   };
+}
+
+function extractReplyHeaders(headers: gmail_v1.Schema$MessagePartHeader[]): ReplyHeaders {
+  const inReplyTo = getHeaderValue(headers, "Message-ID");
+  const existingReferences = getHeaderValue(headers, "References");
+  const references = buildReferences(existingReferences, inReplyTo);
+
+  return {
+    ...(inReplyTo ? { inReplyTo } : {}),
+    ...(references ? { references } : {})
+  };
+}
+
+function getHeaderValue(
+  headers: gmail_v1.Schema$MessagePartHeader[],
+  headerName: string
+): string | undefined {
+  const matchedHeader = headers.find(
+    (header) => header.name?.toLowerCase() === headerName.toLowerCase()
+  );
+  const value = matchedHeader?.value?.trim();
+
+  return value && value.length > 0 ? value : undefined;
+}
+
+function buildReferences(existingReferences?: string, inReplyTo?: string): string | undefined {
+  if (!existingReferences && !inReplyTo) {
+    return undefined;
+  }
+
+  if (!existingReferences) {
+    return inReplyTo;
+  }
+
+  if (!inReplyTo || existingReferences.includes(inReplyTo)) {
+    return existingReferences;
+  }
+
+  return `${existingReferences} ${inReplyTo}`;
 }
 
 function parseThreadMessages(messages: Array<gmail_v1.Schema$Message | null>): EmailMetadata[] {

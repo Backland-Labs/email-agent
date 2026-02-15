@@ -4,6 +4,7 @@ export const DRAFT_REPLY_ERROR_CODES = {
   invalidRequest: "invalid_request",
   contextFetchFailed: "context_fetch_failed",
   draftGenerationFailed: "draft_generation_failed",
+  draftSaveFailed: "draft_save_failed",
   requestAborted: "request_aborted",
   contextDegraded: "context_degraded",
   runFailed: "draft_reply_run_failed"

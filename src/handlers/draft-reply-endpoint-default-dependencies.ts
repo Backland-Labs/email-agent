@@ -1,8 +1,12 @@
 import { google, type Auth } from "googleapis";
 
-import type { DraftReplyEndpointDependencies } from "./draft-reply-endpoint.js";
+import type { DraftReplyEndpointDependencies } from "./draft-reply-endpoint-dependencies.js";
 import { extractDraftReply } from "../services/ai/extract-draft-reply.js";
 import { createAuthClient } from "../services/gmail/create-auth-client.js";
+import {
+  createReplyDraft,
+  type GmailDraftCreateParams
+} from "../services/gmail/create-reply-draft.js";
 import {
   fetchReplyContext,
   type GmailMessageGetParams,
@@ -37,6 +41,21 @@ export function createDraftReplyEndpointDefaultDependencies(): DraftReplyEndpoin
     },
     fetchReplyContext,
     extractDraftReply,
+    createGmailDraftsApi: (authClient) => {
+      const gmail = google.gmail({
+        version: "v1",
+        auth: authClient as Auth.OAuth2Client
+      });
+
+      return {
+        create: (params: GmailDraftCreateParams) =>
+          gmail.users.drafts.create({
+            userId: params.userId,
+            requestBody: params.requestBody
+          })
+      };
+    },
+    createReplyDraft,
     model: process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL,
     createMessageId: () => crypto.randomUUID()
   };

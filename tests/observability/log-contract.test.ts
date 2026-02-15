@@ -68,6 +68,7 @@ describe("structured log contract", () => {
       "durationMs",
       "contextMessageCount",
       "contextDegraded",
+      "gmailDraftId",
       "riskFlags"
     ]);
     assertEntriesHaveFields(entries, "draft_reply.run_failed", [

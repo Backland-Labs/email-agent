@@ -134,18 +134,38 @@ function createDraftReplyDependencies(
   return {
     createAuthClient: () => ({ id: "auth-client" }),
     createGmailReplyContextApi: () => gmailClient,
+    createGmailDraftsApi: () => ({
+      create: () =>
+        Promise.resolve({
+          data: {
+            id: "draft-id",
+            message: {
+              threadId: "thread-reply-1"
+            }
+          }
+        })
+    }),
     fetchReplyContext: () =>
       Promise.resolve({
         email: targetEmail,
         threadId: "thread-reply-1",
         contextMessages: [targetEmail],
         contextMessageCount: 1,
-        contextDegraded: true
+        contextDegraded: true,
+        replyHeaders: {
+          inReplyTo: "<target-email@example.com>",
+          references: "<ancestor@example.com> <target-email@example.com>"
+        }
       }),
     extractDraftReply: () =>
       Promise.resolve({
         draftText: "Thanks for the update request. I will send the status by tomorrow morning.",
         riskFlags: ["missing_context"]
+      }),
+    createReplyDraft: () =>
+      Promise.resolve({
+        id: "gmail-draft-1",
+        threadId: "thread-reply-1"
       }),
     model: "anthropic:test-model",
     createMessageId: () => "draft-message-1"

@@ -4,12 +4,7 @@ import {
 } from "../domain/draft-reply-result.js";
 import { parseDraftReplyRequest } from "../domain/draft-reply-request.js";
 import { logger } from "../observability/logger.js";
-import type { DraftReplyPromptInput } from "../services/ai/build-draft-reply-prompt.js";
-import type {
-  FetchReplyContextOptions,
-  GmailReplyContextApi,
-  ReplyContext
-} from "../services/gmail/fetch-reply-context.js";
+import type { ReplyContext } from "../services/gmail/fetch-reply-context.js";
 import {
   encodeRunError,
   encodeRunFinished,
@@ -19,6 +14,7 @@ import {
   encodeTextMessageStart
 } from "../services/streaming/encode-ag-ui-events.js";
 import { createDraftReplyEndpointDefaultDependencies } from "./draft-reply-endpoint-default-dependencies.js";
+import type { DraftReplyEndpointDependencies } from "./draft-reply-endpoint-dependencies.js";
 import {
   DRAFT_REPLY_ERROR_CODES,
   DraftReplyEndpointError,
@@ -38,21 +34,7 @@ const SSE_HEADERS = {
   "cache-control": "no-cache",
   connection: "keep-alive"
 };
-
-export type DraftReplyEndpointDependencies = {
-  createAuthClient: () => unknown;
-  createGmailReplyContextApi: (authClient: unknown) => GmailReplyContextApi;
-  fetchReplyContext: (
-    gmailClient: GmailReplyContextApi,
-    options: FetchReplyContextOptions
-  ) => Promise<ReplyContext>;
-  extractDraftReply: (
-    modelName: string,
-    input: DraftReplyPromptInput
-  ) => Promise<DraftReplyModelOutput>;
-  model: string;
-  createMessageId: () => string;
-};
+export type { DraftReplyEndpointDependencies } from "./draft-reply-endpoint-dependencies.js";
 
 export async function handleDraftReplyEndpoint(
   request: Request,
@@ -170,6 +152,7 @@ export async function handleDraftReplyEndpoint(
 
         const authClient = dependencies.createAuthClient();
         const gmailClient = dependencies.createGmailReplyContextApi(authClient);
+        const gmailDraftsApi = dependencies.createGmailDraftsApi(authClient);
 
         let context: ReplyContext;
 
@@ -221,6 +204,27 @@ export async function handleDraftReplyEndpoint(
           );
         }
 
+        const savedDraft = await dependencies
+          .createReplyDraft(gmailDraftsApi, {
+            threadId: context.threadId,
+            to: context.email.from,
+            subject: context.email.subject,
+            bodyText: draftReply.draftText,
+            ...(context.replyHeaders.inReplyTo
+              ? { inReplyTo: context.replyHeaders.inReplyTo }
+              : {}),
+            ...(context.replyHeaders.references
+              ? { references: context.replyHeaders.references }
+              : {})
+          })
+          .catch((error: unknown) => {
+            throw new DraftReplyEndpointError(
+              toErrorMessage(error),
+              DRAFT_REPLY_ERROR_CODES.draftSaveFailed,
+              error
+            );
+          });
+
         assertDraftReplyNotAborted(request.signal);
 
         controller.enqueue(
@@ -232,6 +236,7 @@ export async function handleDraftReplyEndpoint(
 
         const runResult = createDraftReplyRunResult({
           emailId: context.email.id,
+          gmailDraftId: savedDraft.id,
           contextMessageCount,
           contextDegraded,
           riskFlags: draftReply.riskFlags
@@ -245,6 +250,7 @@ export async function handleDraftReplyEndpoint(
             durationMs: Date.now() - runStartedAt,
             contextMessageCount,
             contextDegraded,
+            gmailDraftId: savedDraft.id,
             riskFlags: draftReply.riskFlags.length
           },
           "Completed draft reply run"

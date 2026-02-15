@@ -94,7 +94,7 @@ Default port is `3001` (override with `PORT`).
 }
 ```
 
-`/draft-reply` is generation-only in v1 and does not call Gmail send or draft creation APIs.
+`/draft-reply` persists the generated reply as a Gmail draft in the same thread and returns `gmailDraftId` in `RUN_FINISHED.result`. It does not send email.
 
 ## Next Improvements
 

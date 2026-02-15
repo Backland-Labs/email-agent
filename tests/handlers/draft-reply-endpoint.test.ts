@@ -24,13 +24,20 @@ function createDependencies(): DraftReplyEndpointDependencies {
       getMessage: vi.fn(),
       getThread: vi.fn()
     })),
+    createGmailDraftsApi: vi.fn(() => ({
+      create: vi.fn()
+    })),
     fetchReplyContext: vi.fn(() =>
       Promise.resolve({
         email: targetEmail,
         threadId: "thread-1",
         contextMessages: [targetEmail],
         contextMessageCount: 1,
-        contextDegraded: false
+        contextDegraded: false,
+        replyHeaders: {
+          inReplyTo: "<target-email@example.com>",
+          references: "<ancestor@example.com> <target-email@example.com>"
+        }
       })
     ),
     extractDraftReply: vi.fn(() =>
@@ -38,6 +45,12 @@ function createDependencies(): DraftReplyEndpointDependencies {
         draftText: "Thanks for the note. I will send the update by tomorrow.",
         subjectSuggestion: "Re: Planning",
         riskFlags: []
+      })
+    ),
+    createReplyDraft: vi.fn(() =>
+      Promise.resolve({
+        id: "gmail-draft-1",
+        threadId: "thread-1"
       })
     ),
     model: "claude-sonnet-4-20250514",
@@ -94,6 +107,7 @@ describe("handleDraftReplyEndpoint", () => {
     );
     expect(body).toContain('"result":{');
     expect(body).toContain('"emailId":"target-email"');
+    expect(body).toContain('"gmailDraftId":"gmail-draft-1"');
     expect(body).toContain('"contextMessageCount":1');
     expect(body).toContain('"contextDegraded":false');
   });
@@ -154,6 +168,27 @@ describe("handleDraftReplyEndpoint", () => {
     expect(terminalEventCount(body)).toBe(1);
   });
 
+  it("emits RUN_ERROR when Gmail draft creation fails", async () => {
+    const dependencies = createDependencies();
+    dependencies.createReplyDraft = vi.fn(() =>
+      Promise.reject(new Error("Gmail draft save failed"))
+    );
+
+    const response = await handleDraftReplyEndpoint(
+      createRequest({
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ emailId: "target-email" })
+      }),
+      dependencies
+    );
+    const body = await response.text();
+
+    expect(body).toContain('"type":"RUN_ERROR"');
+    expect(body).toContain('"code":"draft_save_failed"');
+    expect(body).toContain("Gmail draft save failed");
+    expect(terminalEventCount(body)).toBe(1);
+  });
+
   it("finishes successfully when context is degraded", async () => {
     const dependencies = createDependencies();
 
@@ -174,7 +209,11 @@ describe("handleDraftReplyEndpoint", () => {
         threadId: "thread-1",
         contextMessages: [targetEmail],
         contextMessageCount: 1,
-        contextDegraded: true
+        contextDegraded: true,
+        replyHeaders: {
+          inReplyTo: "<target-email@example.com>",
+          references: "<ancestor@example.com> <target-email@example.com>"
+        }
       })
     );
 
@@ -190,6 +229,59 @@ describe("handleDraftReplyEndpoint", () => {
     expect(body).toContain('"type":"RUN_FINISHED"');
     expect(body).toContain('"contextDegraded":true');
     expect(terminalEventCount(body)).toBe(1);
+  });
+
+  it("creates drafts without reply headers when target headers are unavailable", async () => {
+    const dependencies = createDependencies();
+    const targetEmail = createEmailMetadata({
+      id: "target-email",
+      threadId: "thread-1",
+      subject: "Planning",
+      from: "manager@example.com",
+      to: "you@example.com",
+      date: "Sat, 14 Feb 2026 13:00:00 +0000",
+      snippet: "Need your update",
+      bodyText: "Can you reply with your status update?"
+    });
+
+    dependencies.fetchReplyContext = vi.fn(() =>
+      Promise.resolve({
+        email: targetEmail,
+        threadId: "thread-1",
+        contextMessages: [targetEmail],
+        contextMessageCount: 1,
+        contextDegraded: false,
+        replyHeaders: {}
+      })
+    );
+
+    const response = await handleDraftReplyEndpoint(
+      createRequest({
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ emailId: "target-email" })
+      }),
+      dependencies
+    );
+
+    await response.text();
+
+    const firstDraftCreateCall = vi.mocked(dependencies.createReplyDraft).mock.calls.at(0);
+
+    if (!firstDraftCreateCall) {
+      throw new Error("Expected createReplyDraft call");
+    }
+
+    const draftInput = firstDraftCreateCall[1] as {
+      threadId: string;
+      to: string;
+      inReplyTo?: string;
+      references?: string;
+    };
+
+    expect(draftInput.threadId).toBe("thread-1");
+    expect(draftInput.to).toBe("manager@example.com");
+    expect(draftInput.inReplyTo).toBeUndefined();
+    expect(draftInput.references).toBeUndefined();
   });
 
   it("emits request_aborted when request signal is already aborted", async () => {

@@ -31,6 +31,7 @@ export const draftReplyModelOutputSchema = z
 
 export type DraftReplyRunResult = {
   emailId: EmailId;
+  gmailDraftId: string;
   contextMessageCount: number;
   contextDegraded: boolean;
   riskFlags: DraftReplyRiskFlag[];
@@ -39,6 +40,7 @@ export type DraftReplyRunResult = {
 export const draftReplyRunResultSchema = z
   .object({
     emailId: nonEmptyTrimmedString,
+    gmailDraftId: nonEmptyTrimmedString,
     contextMessageCount: z.number().int().nonnegative(),
     contextDegraded: z.boolean(),
     riskFlags: z.array(draftReplyRiskFlagSchema)
@@ -57,6 +59,7 @@ export function parseDraftReplyModelOutput(input: unknown): DraftReplyModelOutpu
 
 export function createDraftReplyRunResult(input: {
   emailId: string;
+  gmailDraftId: string;
   contextMessageCount: number;
   contextDegraded: boolean;
   riskFlags: DraftReplyRiskFlag[];
@@ -65,6 +68,7 @@ export function createDraftReplyRunResult(input: {
 
   return {
     emailId: parseEmailId(parsed.emailId),
+    gmailDraftId: parsed.gmailDraftId,
     contextMessageCount: parsed.contextMessageCount,
     contextDegraded: parsed.contextDegraded,
     riskFlags: parsed.riskFlags

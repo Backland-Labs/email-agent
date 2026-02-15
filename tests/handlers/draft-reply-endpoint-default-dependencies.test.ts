@@ -9,6 +9,18 @@ vi.mock("googleapis", () => ({
         },
         threads: {
           get: vi.fn(() => Promise.resolve({ data: { messages: [] } }))
+        },
+        drafts: {
+          create: vi.fn(() =>
+            Promise.resolve({
+              data: {
+                id: "draft-id",
+                message: {
+                  threadId: "thread-id"
+                }
+              }
+            })
+          )
         }
       }
     }))
@@ -46,7 +58,20 @@ vi.mock("../../src/services/gmail/fetch-reply-context.js", () => ({
         }
       ],
       contextMessageCount: 1,
-      contextDegraded: false
+      contextDegraded: false,
+      replyHeaders: {
+        inReplyTo: "<target-email@example.com>",
+        references: "<ancestor@example.com> <target-email@example.com>"
+      }
+    })
+  )
+}));
+
+vi.mock("../../src/services/gmail/create-reply-draft.js", () => ({
+  createReplyDraft: vi.fn(() =>
+    Promise.resolve({
+      id: "gmail-draft-1",
+      threadId: "thread-id"
     })
   )
 }));
@@ -66,6 +91,7 @@ import { createEmailMetadata } from "../../src/domain/email-metadata.js";
 import { handleDraftReplyEndpoint } from "../../src/handlers/draft-reply-endpoint.js";
 import { extractDraftReply } from "../../src/services/ai/extract-draft-reply.js";
 import { createAuthClient } from "../../src/services/gmail/create-auth-client.js";
+import { createReplyDraft } from "../../src/services/gmail/create-reply-draft.js";
 import { fetchReplyContext } from "../../src/services/gmail/fetch-reply-context.js";
 
 function createReplyContext() {
@@ -85,7 +111,11 @@ function createReplyContext() {
     threadId: "thread-id",
     contextMessages: [email],
     contextMessageCount: 1,
-    contextDegraded: false
+    contextDegraded: false,
+    replyHeaders: {
+      inReplyTo: "<target-email@example.com>",
+      references: "<ancestor@example.com> <target-email@example.com>"
+    }
   };
 }
 
@@ -93,6 +123,7 @@ describe("handleDraftReplyEndpoint with default dependencies", () => {
   beforeEach(() => {
     vi.mocked(createAuthClient).mockClear();
     vi.mocked(fetchReplyContext).mockClear();
+    vi.mocked(createReplyDraft).mockClear();
     vi.mocked(extractDraftReply).mockClear();
     vi.mocked(google.gmail).mockClear();
     delete process.env.ANTHROPIC_MODEL;
@@ -119,6 +150,7 @@ describe("handleDraftReplyEndpoint with default dependencies", () => {
         contextDegraded: false
       })
     );
+    expect(vi.mocked(createReplyDraft)).toHaveBeenCalledTimes(1);
     expect(body).toContain('"type":"RUN_FINISHED"');
   });
 
@@ -141,6 +173,23 @@ describe("handleDraftReplyEndpoint with default dependencies", () => {
       return createReplyContext();
     });
 
+    vi.mocked(createReplyDraft).mockImplementation(async (gmailDraftsApi, input) => {
+      await gmailDraftsApi.create({
+        userId: "me",
+        requestBody: {
+          message: {
+            threadId: input.threadId,
+            raw: "cmF3"
+          }
+        }
+      });
+
+      return {
+        id: "gmail-draft-1",
+        threadId: input.threadId
+      };
+    });
+
     const response = await handleDraftReplyEndpoint(
       new Request("http://localhost:3001/draft-reply", {
         method: "POST",
@@ -155,8 +204,9 @@ describe("handleDraftReplyEndpoint with default dependencies", () => {
     await response.text();
 
     expect(vi.mocked(createAuthClient)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(google.gmail)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(google.gmail)).toHaveBeenCalledTimes(2);
     expect(vi.mocked(fetchReplyContext)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(createReplyDraft)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(extractDraftReply)).toHaveBeenCalledWith(
       "custom-model",
       expect.objectContaining({

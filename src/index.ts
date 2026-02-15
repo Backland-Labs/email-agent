@@ -6,6 +6,7 @@ export * from "./services/gmail/create-auth-client.js";
 export * from "./services/gmail/parse-gmail-message.js";
 export * from "./services/gmail/fetch-unread-emails.js";
 export * from "./services/gmail/fetch-reply-context.js";
+export * from "./services/gmail/create-reply-draft.js";
 export * from "./services/ai/build-insight-prompt.js";
 export * from "./services/ai/extract-email-insight.js";
 export * from "./services/ai/build-draft-reply-prompt.js";
