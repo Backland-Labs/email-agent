@@ -10,7 +10,9 @@ import {
 
 const DEFAULT_INSIGHT: EmailInsight = {
   summary: "A routine quarterly update.",
-  category: "business"
+  category: "business",
+  urgency: "fyi",
+  action: null
 };
 
 await runSuccessScenario();

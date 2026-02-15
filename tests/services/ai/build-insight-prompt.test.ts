@@ -83,7 +83,7 @@ describe("buildInsightPrompt", () => {
     expect(truncatedBody.length).toBe(4000);
   });
 
-  it("includes triaging role instruction mentioning Max", () => {
+  it("includes chief of staff role instruction mentioning Max", () => {
     const email = createEmailMetadata({
       id: "email-4",
       threadId: "thread-4",
@@ -97,7 +97,7 @@ describe("buildInsightPrompt", () => {
 
     const prompt = buildInsightPrompt(email);
 
-    expect(prompt.system.toLowerCase()).toContain("executive assistant");
+    expect(prompt.system.toLowerCase()).toContain("chief of staff");
     expect(prompt.system).toContain("Max");
   });
 
@@ -119,5 +119,42 @@ describe("buildInsightPrompt", () => {
     expect(prompt.system).toContain("business");
     expect(prompt.system).toContain("automated");
     expect(prompt.system).toContain("newsletter_or_spam");
+  });
+
+  it("includes urgency classification instructions", () => {
+    const email = createEmailMetadata({
+      id: "email-6",
+      threadId: "thread-6",
+      subject: "Urgency check",
+      from: "sender@example.com",
+      to: "recipient@example.com",
+      date: "Sat, 14 Feb 2026 11:05:00 +0000",
+      snippet: "Urgency content",
+      bodyText: "Check urgency instruction"
+    });
+
+    const prompt = buildInsightPrompt(email);
+
+    expect(prompt.system).toContain("action_required");
+    expect(prompt.system).toContain("fyi");
+    expect(prompt.system).toContain("noise");
+  });
+
+  it("includes action field instructions", () => {
+    const email = createEmailMetadata({
+      id: "email-7",
+      threadId: "thread-7",
+      subject: "Action check",
+      from: "sender@example.com",
+      to: "recipient@example.com",
+      date: "Sat, 14 Feb 2026 11:06:00 +0000",
+      snippet: "Action content",
+      bodyText: "Check action instruction"
+    });
+
+    const prompt = buildInsightPrompt(email);
+
+    expect(prompt.system).toContain('"action"');
+    expect(prompt.system).toContain("null");
   });
 });

@@ -42,7 +42,9 @@ describe("extractEmailInsight", () => {
 
     const insight = {
       summary: "Manager is requesting feedback on the planning document by tomorrow.",
-      category: "personal"
+      category: "personal",
+      urgency: "action_required",
+      action: "Review the planning document and send feedback."
     };
 
     streamTextMock.mockReturnValue({
@@ -80,7 +82,9 @@ describe("extractEmailInsight", () => {
     streamTextMock.mockReturnValue({
       output: Promise.resolve({
         summary: "A routine message.",
-        category: "business"
+        category: "business",
+        urgency: "fyi",
+        action: null
       })
     });
 
@@ -92,6 +96,7 @@ describe("extractEmailInsight", () => {
     );
 
     expect(result.category).toBe("business");
+    expect(result.urgency).toBe("fyi");
     expect(createModelMock).toHaveBeenCalledWith("anthropic:claude-sonnet-4-20250514");
   });
 
@@ -110,7 +115,9 @@ describe("extractEmailInsight", () => {
     streamTextMock.mockReturnValue({
       output: Promise.resolve({
         summary: "Valid summary.",
-        category: "invalid_category"
+        category: "invalid_category",
+        urgency: "fyi",
+        action: null
       })
     });
 
@@ -155,7 +162,9 @@ describe("extractEmailInsight", () => {
     streamTextMock.mockReturnValue({
       output: Promise.resolve({
         summary: "Routine schema check.",
-        category: "business"
+        category: "business",
+        urgency: "fyi",
+        action: null
       })
     });
 
