@@ -2,6 +2,7 @@ import { handleAgentEndpoint } from "./handlers/agent-endpoint.js";
 import { handleHealthEndpoint } from "./handlers/health-endpoint.js";
 
 const DEFAULT_PORT = 3001;
+const DEFAULT_IDLE_TIMEOUT_SECONDS = 120;
 
 export type ServerRouteHandlers = {
   handleAgentEndpoint: (request: Request) => Promise<Response>;
@@ -43,7 +44,8 @@ export function startServer(
 ) {
   return getBunRuntime().serve({
     port,
-    fetch: createServerFetchHandler(handlers)
+    fetch: createServerFetchHandler(handlers),
+    idleTimeout: getConfiguredIdleTimeoutSeconds()
   });
 }
 
@@ -63,6 +65,22 @@ function getConfiguredPort(): number {
   return parsedPort;
 }
 
+function getConfiguredIdleTimeoutSeconds(): number {
+  const value = process.env.IDLE_TIMEOUT_SECONDS;
+
+  if (!value) {
+    return DEFAULT_IDLE_TIMEOUT_SECONDS;
+  }
+
+  const parsedIdleTimeout = Number.parseInt(value, 10);
+
+  if (Number.isNaN(parsedIdleTimeout) || parsedIdleTimeout <= 0) {
+    return DEFAULT_IDLE_TIMEOUT_SECONDS;
+  }
+
+  return parsedIdleTimeout;
+}
+
 /* c8 ignore start */
 if (isMainModule()) {
   startServer();
@@ -70,7 +88,11 @@ if (isMainModule()) {
 /* c8 ignore stop */
 
 function getBunRuntime(): {
-  serve: (options: { port: number; fetch: (request: Request) => Promise<Response> }) => unknown;
+  serve: (options: {
+    port: number;
+    fetch: (request: Request) => Promise<Response>;
+    idleTimeout?: number;
+  }) => unknown;
 } {
   const runtime = (globalThis as { Bun?: unknown }).Bun;
 
@@ -79,7 +101,11 @@ function getBunRuntime(): {
   }
 
   return runtime as {
-    serve: (options: { port: number; fetch: (request: Request) => Promise<Response> }) => unknown;
+    serve: (options: {
+      port: number;
+      fetch: (request: Request) => Promise<Response>;
+      idleTimeout?: number;
+    }) => unknown;
   };
 }
 
