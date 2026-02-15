@@ -50,9 +50,7 @@ export async function extractEmailInsight(
     const output = await result.output;
     return emailInsightSchema.parse(output);
   } catch (error) {
-    throw new Error(
-      `Failed to extract insight for email "${email.subject}" (${email.id}): ${toErrorMessage(error)}`
-    );
+    throw new Error(`Failed to extract insight for email (${email.id}): ${toErrorMessage(error)}`);
   }
 }
 
