@@ -16,13 +16,36 @@ import {
 const DEFAULT_MODEL = "claude-sonnet-4-20250514";
 
 export function createDraftReplyEndpointDefaultDependencies(): DraftReplyEndpointDependencies {
-  return {
-    createAuthClient,
-    createGmailReplyContextApi: (authClient) => {
-      const gmail = google.gmail({
+  const gmailClientCache = new WeakMap<object, ReturnType<typeof google.gmail>>();
+
+  const createGmailClient = (authClient: unknown) => {
+    if (typeof authClient !== "object" || authClient === null) {
+      return google.gmail({
         version: "v1",
         auth: authClient as Auth.OAuth2Client
       });
+    }
+
+    const gmailClient = gmailClientCache.get(authClient);
+
+    if (gmailClient) {
+      return gmailClient;
+    }
+
+    const newGmailClient = google.gmail({
+      version: "v1",
+      auth: authClient as Auth.OAuth2Client
+    });
+
+    gmailClientCache.set(authClient, newGmailClient);
+
+    return newGmailClient;
+  };
+
+  return {
+    createAuthClient,
+    createGmailReplyContextApi: (authClient) => {
+      const gmail = createGmailClient(authClient);
 
       return {
         getMessage: (params: GmailMessageGetParams) =>
@@ -42,10 +65,7 @@ export function createDraftReplyEndpointDefaultDependencies(): DraftReplyEndpoin
     fetchReplyContext,
     extractDraftReply,
     createGmailDraftsApi: (authClient) => {
-      const gmail = google.gmail({
-        version: "v1",
-        auth: authClient as Auth.OAuth2Client
-      });
+      const gmail = createGmailClient(authClient);
 
       return {
         create: (params: GmailDraftCreateParams) =>
