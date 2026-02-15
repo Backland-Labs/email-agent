@@ -208,6 +208,8 @@ export async function handleDraftReplyEndpoint(
           );
         }
 
+        assertDraftReplyNotAborted(request.signal);
+
         const savedDraft = await dependencies
           .createReplyDraft(gmailDraftsApi, {
             threadId: context.threadId,
