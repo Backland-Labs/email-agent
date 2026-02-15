@@ -9,6 +9,8 @@ import {
 
 let streamTextMock: ReturnType<typeof vi.fn>;
 let outputObjectMock: ReturnType<typeof vi.fn>;
+let createModelMock: ReturnType<typeof vi.fn>;
+let modelObject: { id: string };
 let dependencies: ExtractEmailInsightDependencies;
 
 describe("extractEmailInsight", () => {
@@ -16,10 +18,13 @@ describe("extractEmailInsight", () => {
     streamTextMock = vi.fn();
     outputObjectMock = vi.fn();
     outputObjectMock.mockReturnValue({ name: "mock-output" });
+    modelObject = { id: "anthropic:test-model" };
+    createModelMock = vi.fn().mockReturnValue(modelObject);
 
     dependencies = {
       streamText: streamTextMock,
-      outputObject: outputObjectMock
+      outputObject: outputObjectMock,
+      createModel: createModelMock
     };
   });
 
@@ -54,6 +59,13 @@ describe("extractEmailInsight", () => {
     );
 
     expect(result).toEqual(insight);
+    expect(createModelMock).toHaveBeenCalledWith("anthropic:claude-sonnet-4-20250514");
+    expect(streamTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: modelObject,
+        output: { name: "mock-output" }
+      })
+    );
   });
 
   it("loads dependencies when explicit dependencies are omitted", async () => {
@@ -86,6 +98,7 @@ describe("extractEmailInsight", () => {
     );
 
     expect(result.priority).toBe("low");
+    expect(createModelMock).toHaveBeenCalledWith("anthropic:claude-sonnet-4-20250514");
   });
 
   it("wraps schema validation failures with email context", async () => {

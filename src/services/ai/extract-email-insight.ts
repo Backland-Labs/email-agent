@@ -1,3 +1,4 @@
+import { anthropic } from "@ai-sdk/anthropic";
 import { emailInsightSchema, type EmailInsight } from "../../domain/email-insight.js";
 import type { EmailMetadata } from "../../domain/email-metadata.js";
 import { buildInsightPrompt } from "./build-insight-prompt.js";
@@ -6,24 +7,28 @@ type StreamTextResult = {
   output: Promise<unknown>;
 };
 
+type LanguageModel = unknown;
+
 type StreamTextFunction = (options: {
-  model: string;
+  model: LanguageModel;
   system: string;
   prompt: string;
   output: unknown;
 }) => StreamTextResult;
 
 type OutputObjectFunction = (options: { schema: unknown }) => unknown;
+type CreateModelFunction = (modelName: string) => LanguageModel;
 
 export type ExtractEmailInsightDependencies = {
   streamText: StreamTextFunction;
   outputObject: OutputObjectFunction;
+  createModel: CreateModelFunction;
 };
 
 type DependenciesLoader = () => Promise<ExtractEmailInsightDependencies>;
 
 export async function extractEmailInsight(
-  model: string,
+  modelName: string,
   email: EmailMetadata,
   dependencies?: ExtractEmailInsightDependencies,
   loadDependencies: DependenciesLoader = loadDefaultDependencies
@@ -32,6 +37,7 @@ export async function extractEmailInsight(
   const resolvedDependencies = dependencies ?? (await loadDependencies());
 
   try {
+    const model = resolvedDependencies.createModel(modelName);
     const result = resolvedDependencies.streamText({
       model,
       system: prompt.system,
@@ -67,7 +73,8 @@ async function loadDefaultDependencies(): Promise<ExtractEmailInsightDependencie
 
   return {
     streamText: aiModule.streamText,
-    outputObject: aiModule.Output.object
+    outputObject: aiModule.Output.object,
+    createModel: (modelName) => anthropic(modelName)
   };
 }
 /* c8 ignore stop */
