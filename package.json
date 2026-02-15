@@ -8,6 +8,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "start": "bun run src/server.ts",
+    "dev": "bun --watch run src/server.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier . --write",
@@ -17,7 +19,7 @@
     "coverage": "vitest run --coverage",
     "lint-staged": "lint-staged",
     "structure:check": "node scripts/check-structure.mjs",
-    "opencode:append-thread": "bun run scripts/append-opencode-thread.ts",
+    "opencode:append-thread": "bun run scripts/append-opencode-thread.ts --format json",
     "check": "bun run structure:check && bun run format:check && bun run lint && bun run typecheck && bun run test",
     "prepare": "simple-git-hooks"
   },
@@ -45,5 +47,13 @@
   },
   "simple-git-hooks": {
     "pre-commit": "bun run lint-staged && bun run typecheck"
+  },
+  "dependencies": {
+    "@ag-ui/core": "^0.0.45",
+    "@ag-ui/encoder": "^0.0.45",
+    "@ai-sdk/anthropic": "^3.0.44",
+    "ai": "^6.0.86",
+    "googleapis": "^171.4.0",
+    "zod": "^4.3.6"
   }
 }

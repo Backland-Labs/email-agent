@@ -8,6 +8,8 @@ interface GitHubComment {
   body: string | null;
 }
 
+type ThreadExportFormat = "text" | "json";
+
 interface GitHubPullRequest {
   number: number;
   state: string;
@@ -34,11 +36,15 @@ interface OpencodeMessage {
 interface OpencodeSession {
   info?: {
     id?: string;
+    title?: string;
   };
   messages?: OpencodeMessage[];
 }
 
 const THREAD_MARKER = "<!-- opencode-session-thread -->";
+const JSON_FORMAT_MARKER = "<!-- opencode-session-format:json -->";
+const MAX_COMMENT_BYTES = 60_000;
+const JSON_CHUNK_BYTES = 40_000;
 
 function parseArgValue(long: string, short: string): string | undefined {
   const args = process.argv.slice(2);
@@ -56,6 +62,10 @@ function parseArgValue(long: string, short: string): string | undefined {
   return undefined;
 }
 
+function parseFlagValue(flag: string): boolean {
+  return process.argv.slice(2).includes(flag);
+}
+
 function parseRepository(repoArg?: string): { owner: string; repo: string } {
   const repo = repoArg ?? process.env.GITHUB_REPOSITORY;
 
@@ -69,6 +79,24 @@ function parseRepository(repoArg?: string): { owner: string; repo: string } {
   }
 
   return { owner, repo: repoName };
+}
+
+function resolveGitHubToken(): string {
+  const envToken = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
+  if (envToken) {
+    return envToken;
+  }
+
+  try {
+    const ghToken = runCommand("gh auth token").trim();
+    if (ghToken) {
+      return ghToken;
+    }
+  } catch {
+    // Fall back to explicit error below.
+  }
+
+  throw new Error("Missing GitHub token. Set GH_TOKEN/GITHUB_TOKEN or run `gh auth login`.");
 }
 
 function parsePullRequestFromEventPath(): number | undefined {
@@ -127,11 +155,12 @@ async function detectPullRequestNumber(
     return undefined;
   }
 
-  const openPullRequests = await githubRequest<GitHubPullRequest[]>(
-    token,
-    "GET",
-    `/repos/${owner}/${repo}/pulls?state=open&per_page=100`
-  );
+  const openPullRequests =
+    (await githubRequest<GitHubPullRequest[]>(
+      token,
+      "GET",
+      `/repos/${owner}/${repo}/pulls?state=open&per_page=100`
+    )) ?? [];
 
   return openPullRequests.find((pr) => pr.state === "open" && pr.head.ref === headRef)?.number;
 }
@@ -151,7 +180,16 @@ function collectPositionalArgs(): string[] {
       continue;
     }
 
-    const expectsValue = ["--pr", "-p", "--repo", "-r", "--session", "-s"].includes(arg);
+    const expectsValue = [
+      "--pr",
+      "-p",
+      "--repo",
+      "-r",
+      "--session",
+      "-s",
+      "--format",
+      "-f"
+    ].includes(arg);
     if (expectsValue) {
       i += 1;
     }
@@ -163,7 +201,8 @@ function collectPositionalArgs(): string[] {
 function runCommand(command: string): string {
   return execSync(command, {
     encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"]
+    stdio: ["ignore", "pipe", "pipe"],
+    maxBuffer: 64 * 1024 * 1024
   }) as string;
 }
 
@@ -222,17 +261,45 @@ function getLatestSessionId(): string {
   return sessionId;
 }
 
+function parseExportFormat(
+  formatArg: string | undefined,
+  jsonFlagEnabled: boolean
+): ThreadExportFormat {
+  if (jsonFlagEnabled && !formatArg) {
+    return "json";
+  }
+
+  if (!formatArg) {
+    return "text";
+  }
+
+  const normalized = formatArg.toLowerCase();
+  if (normalized !== "text" && normalized !== "json") {
+    throw new Error("Invalid format. Use --format text or --format json.");
+  }
+
+  if (jsonFlagEnabled && normalized === "text") {
+    throw new Error("Conflicting format options. Use --json with --format json, or remove --json.");
+  }
+
+  return normalized;
+}
+
 function escapeMarkdownFences(value: string): string {
   return value.split("```").join("``\u200b`");
 }
 
+function getSessionTitle(session: OpencodeSession): string {
+  return session.info?.title ?? session.info?.id ?? "OpenCode session";
+}
+
 function getThreadMessage(session: OpencodeSession, prNumber: number, repository: string): string {
-  const title = session.info?.id ? `Session: \`${session.info.id}\`` : "OpenCode session";
+  const sessionLabel = `\`${getSessionTitle(session)}\``;
   const lines = [
     THREAD_MARKER,
     "## OpenCode Session Thread",
     "",
-    `- Title: ${title}`,
+    `- Session: ${sessionLabel}`,
     `- Pull request: #${prNumber}`,
     `- Repository: ${repository}`,
     ""
@@ -267,12 +334,143 @@ function getThreadMessage(session: OpencodeSession, prNumber: number, repository
   return `${lines.join("\n")}\n`;
 }
 
+function splitStringByMaxBytes(value: string, maxBytes: number): string[] {
+  if (maxBytes <= 0) {
+    throw new Error("maxBytes must be a positive integer.");
+  }
+
+  if (value.length === 0) {
+    return [""];
+  }
+
+  const chunks: string[] = [];
+  let cursor = 0;
+
+  while (cursor < value.length) {
+    let low = 1;
+    let high = value.length - cursor;
+    let best = 1;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const candidate = value.slice(cursor, cursor + mid);
+      const candidateBytes = Buffer.byteLength(candidate, "utf8");
+
+      if (candidateBytes <= maxBytes) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    chunks.push(value.slice(cursor, cursor + best));
+    cursor += best;
+  }
+
+  return chunks;
+}
+
+function getCommentPartNumber(commentBody: string | null): number {
+  if (!commentBody) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const match = commentBody.match(/<!-- opencode-session-part:(\d+)\/(\d+) -->/);
+  if (!match) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const part = Number(match[1]);
+  if (!Number.isInteger(part) || part <= 0) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  return part;
+}
+
+function createJsonCommentBody(params: {
+  chunk: string;
+  chunkIndex: number;
+  chunkCount: number;
+  session: OpencodeSession;
+  prNumber: number;
+  repository: string;
+}): string {
+  const { chunk, chunkIndex, chunkCount, session, prNumber, repository } = params;
+  const part = chunkIndex + 1;
+  const partSuffix = chunkCount > 1 ? ` • Part ${part}/${chunkCount}` : "";
+
+  const lines = [
+    THREAD_MARKER,
+    JSON_FORMAT_MARKER,
+    `<!-- opencode-session-part:${part}/${chunkCount} -->`,
+    `## OpenCode Session Export (JSON)${partSuffix}`,
+    "",
+    `- Session: \`${getSessionTitle(session)}\``,
+    `- Pull request: #${prNumber}`,
+    `- Repository: ${repository}`,
+    "",
+    "````json",
+    chunk,
+    "````",
+    ""
+  ];
+
+  return lines.join("\n");
+}
+
+function getJsonThreadMessages(
+  session: OpencodeSession,
+  prNumber: number,
+  repository: string
+): string[] {
+  const sessionJson = JSON.stringify(session, null, 2);
+  const jsonChunks = splitStringByMaxBytes(sessionJson, JSON_CHUNK_BYTES);
+
+  return jsonChunks.map((chunk, chunkIndex) =>
+    createJsonCommentBody({
+      chunk,
+      chunkIndex,
+      chunkCount: jsonChunks.length,
+      session,
+      prNumber,
+      repository
+    })
+  );
+}
+
+function getCommentMessages(params: {
+  session: OpencodeSession;
+  prNumber: number;
+  repository: string;
+  format: ThreadExportFormat;
+}): string[] {
+  const { session, prNumber, repository, format } = params;
+
+  if (format === "json") {
+    return getJsonThreadMessages(session, prNumber, repository);
+  }
+
+  return [getThreadMessage(session, prNumber, repository)];
+}
+
+function validateCommentBodySize(commentBody: string): void {
+  const bytes = Buffer.byteLength(commentBody, "utf8");
+
+  if (bytes > MAX_COMMENT_BYTES) {
+    throw new Error(
+      `Generated comment is too large (${bytes} bytes). Max supported by this script: ${MAX_COMMENT_BYTES}.`
+    );
+  }
+}
+
 async function githubRequest<T>(
   token: string,
-  method: "GET" | "POST" | "PATCH",
+  method: "GET" | "POST" | "PATCH" | "DELETE",
   url: string,
   body?: string
-): Promise<T> {
+): Promise<T | undefined> {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
     Authorization: `Bearer ${token}`,
@@ -297,56 +495,105 @@ async function githubRequest<T>(
     throw new Error(`GitHub API request failed (${response.status}): ${details}`);
   }
 
-  return response.json() as Promise<T>;
+  if (response.status === 204 || response.status === 205) {
+    return undefined;
+  }
+
+  const responseBody = await response.text();
+  if (!responseBody.trim()) {
+    return undefined;
+  }
+
+  return JSON.parse(responseBody) as T;
 }
 
-async function upsertComment(params: {
+async function upsertComments(params: {
   owner: string;
   repo: string;
   prNumber: number;
   token: string;
-  body: string;
+  bodies: string[];
 }): Promise<void> {
-  const { owner, repo, prNumber, token, body } = params;
+  const { owner, repo, prNumber, token, bodies } = params;
   const commentBase = `/repos/${owner}/${repo}/issues/${prNumber}/comments`;
-  const existing = (
-    await githubRequest<GitHubComment[]>(token, "GET", `${commentBase}?per_page=100`)
-  ).find((comment) => comment.body?.includes(THREAD_MARKER));
 
-  if (existing) {
-    await githubRequest(
-      token,
-      "PATCH",
-      `/repos/${owner}/${repo}/issues/comments/${existing.id}`,
-      JSON.stringify({ body })
-    );
-    console.log(`Updated existing opencode thread comment: ${existing.id}`);
-    return;
+  for (const body of bodies) {
+    validateCommentBodySize(body);
   }
 
-  const created = await githubRequest<{ id: number }>(
-    token,
-    "POST",
-    commentBase,
-    JSON.stringify({ body })
-  );
-  console.log(`Created opencode thread comment: ${created.id}`);
+  const existingThreadComments = (
+    (await githubRequest<GitHubComment[]>(token, "GET", `${commentBase}?per_page=100`)) ?? []
+  )
+    .filter((comment) => comment.body?.includes(THREAD_MARKER))
+    .sort((left, right) => {
+      const leftPart = getCommentPartNumber(left.body);
+      const rightPart = getCommentPartNumber(right.body);
+
+      if (leftPart !== rightPart) {
+        return leftPart - rightPart;
+      }
+
+      return left.id - right.id;
+    });
+
+  for (let index = 0; index < bodies.length; index++) {
+    const body = bodies[index];
+    const existing = existingThreadComments[index];
+
+    if (existing) {
+      await githubRequest(
+        token,
+        "PATCH",
+        `/repos/${owner}/${repo}/issues/comments/${existing.id}`,
+        JSON.stringify({ body })
+      );
+      console.log(`Updated opencode thread comment ${index + 1}/${bodies.length}: ${existing.id}`);
+      continue;
+    }
+
+    const created = await githubRequest<{ id: number }>(
+      token,
+      "POST",
+      commentBase,
+      JSON.stringify({ body })
+    );
+
+    if (!created) {
+      throw new Error("GitHub API did not return a created comment id.");
+    }
+
+    console.log(`Created opencode thread comment ${index + 1}/${bodies.length}: ${created.id}`);
+  }
+
+  for (let index = bodies.length; index < existingThreadComments.length; index++) {
+    const staleComment = existingThreadComments[index];
+    if (!staleComment) {
+      continue;
+    }
+
+    await githubRequest(
+      token,
+      "DELETE",
+      `/repos/${owner}/${repo}/issues/comments/${staleComment.id}`
+    );
+    console.log(`Deleted stale opencode thread comment: ${staleComment.id}`);
+  }
 }
 
 async function main() {
   const prArg = parseArgValue("--pr", "-p");
   const repoArg = parseArgValue("--repo", "-r");
   const sessionArg = parseArgValue("--session", "-s");
+  const formatArg = parseArgValue("--format", "-f");
+  const jsonFlag = parseFlagValue("--json");
   const [positionalPr, positionalSession] = collectPositionalArgs();
 
   const resolvedPrArg = prArg ?? positionalPr;
   const resolvedSessionArg = sessionArg ?? positionalSession;
+  const format = parseExportFormat(formatArg ?? process.env.OPENCODE_THREAD_FORMAT, jsonFlag);
 
   const { owner, repo } = parseRepository(repoArg);
-  const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
-  if (!token) {
-    throw new Error("Missing GitHub token. Set GH_TOKEN or GITHUB_TOKEN.");
-  }
+  const token = resolveGitHubToken();
 
   let prNumber: number;
 
@@ -369,23 +616,38 @@ async function main() {
   const sessionId = resolvedSessionArg || process.env.OPENCODE_SESSION_ID || getLatestSessionId();
   const output = runCommand(`opencode export ${sessionId}`);
   const session = parseJsonFromPrefixedOutput(output) as OpencodeSession;
-  const comment = getThreadMessage(session, prNumber, `${owner}/${repo}`);
+  const comments = getCommentMessages({
+    session,
+    prNumber,
+    repository: `${owner}/${repo}`,
+    format
+  });
 
-  await upsertComment({
+  await upsertComments({
     owner,
     repo,
     prNumber,
     token,
-    body: comment
+    bodies: comments
   });
 }
 
-main().catch((error) => {
-  if (error instanceof Error) {
-    console.error(error.message);
-  } else {
-    console.error("Unknown error", error);
-  }
+export {
+  getCommentMessages,
+  getCommentPartNumber,
+  getJsonThreadMessages,
+  parseExportFormat,
+  splitStringByMaxBytes
+};
 
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch((error) => {
+    if (error instanceof Error) {
+      console.error(error.message);
+    } else {
+      console.error("Unknown error", error);
+    }
+
+    process.exit(1);
+  });
+}
