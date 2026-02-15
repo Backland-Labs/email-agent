@@ -86,6 +86,7 @@ describe("server routing", () => {
   it("starts server with configured PORT", () => {
     const originalBun = (globalThis as { Bun?: unknown }).Bun;
     const originalPort = process.env.PORT;
+    const originalIdleTimeout = process.env.IDLE_TIMEOUT_SECONDS;
     const serveMock = vi.fn(() => ({ id: "server" }));
 
     Object.defineProperty(globalThis, "Bun", {
@@ -95,6 +96,7 @@ describe("server routing", () => {
     });
 
     process.env.PORT = "4567";
+    process.env.IDLE_TIMEOUT_SECONDS = "180";
 
     const result = startServer(undefined, createHandlers());
 
@@ -106,11 +108,15 @@ describe("server routing", () => {
       throw new Error("Missing serve call");
     }
 
-    const options = (firstCall as unknown as [{ port: number; fetch: unknown }])[0];
+    const options = (
+      firstCall as unknown as [{ port: number; fetch: unknown; idleTimeout?: number }]
+    )[0];
     expect(options.port).toBe(4567);
     expect(typeof options.fetch).toBe("function");
+    expect(options.idleTimeout).toBe(180);
 
     process.env.PORT = originalPort;
+    process.env.IDLE_TIMEOUT_SECONDS = originalIdleTimeout;
     Object.defineProperty(globalThis, "Bun", {
       configurable: true,
       writable: true,
@@ -121,6 +127,7 @@ describe("server routing", () => {
   it("falls back to default port when PORT is invalid", () => {
     const originalBun = (globalThis as { Bun?: unknown }).Bun;
     const originalPort = process.env.PORT;
+    const originalIdleTimeout = process.env.IDLE_TIMEOUT_SECONDS;
     const serveMock = vi.fn(() => ({ id: "server" }));
 
     Object.defineProperty(globalThis, "Bun", {
@@ -130,6 +137,7 @@ describe("server routing", () => {
     });
 
     process.env.PORT = "invalid";
+    process.env.IDLE_TIMEOUT_SECONDS = "invalid";
 
     startServer(undefined, createHandlers());
 
@@ -140,11 +148,15 @@ describe("server routing", () => {
       throw new Error("Missing serve call");
     }
 
-    const options = (firstCall as unknown as [{ port: number; fetch: unknown }])[0];
+    const options = (
+      firstCall as unknown as [{ port: number; fetch: unknown; idleTimeout?: number }]
+    )[0];
     expect(options.port).toBe(3001);
     expect(typeof options.fetch).toBe("function");
+    expect(options.idleTimeout).toBe(120);
 
     process.env.PORT = originalPort;
+    process.env.IDLE_TIMEOUT_SECONDS = originalIdleTimeout;
     Object.defineProperty(globalThis, "Bun", {
       configurable: true,
       writable: true,
@@ -155,6 +167,7 @@ describe("server routing", () => {
   it("falls back to default port when PORT is missing", () => {
     const originalBun = (globalThis as { Bun?: unknown }).Bun;
     const originalPort = process.env.PORT;
+    const originalIdleTimeout = process.env.IDLE_TIMEOUT_SECONDS;
     const serveMock = vi.fn(() => ({ id: "server" }));
 
     Object.defineProperty(globalThis, "Bun", {
@@ -164,6 +177,7 @@ describe("server routing", () => {
     });
 
     delete process.env.PORT;
+    delete process.env.IDLE_TIMEOUT_SECONDS;
 
     startServer(undefined, createHandlers());
 
@@ -174,11 +188,15 @@ describe("server routing", () => {
       throw new Error("Missing serve call");
     }
 
-    const options = (firstCall as unknown as [{ port: number; fetch: unknown }])[0];
+    const options = (
+      firstCall as unknown as [{ port: number; fetch: unknown; idleTimeout?: number }]
+    )[0];
     expect(options.port).toBe(3001);
     expect(typeof options.fetch).toBe("function");
+    expect(options.idleTimeout).toBe(120);
 
     process.env.PORT = originalPort;
+    process.env.IDLE_TIMEOUT_SECONDS = originalIdleTimeout;
     Object.defineProperty(globalThis, "Bun", {
       configurable: true,
       writable: true,

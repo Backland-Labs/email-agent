@@ -80,7 +80,7 @@ Default port is `3001` (override with `PORT`).
 ## Endpoints
 
 - `GET /health` -> `{ "status": "ok" }`
-- `POST /agent` -> AG-UI SSE stream (`RUN_STARTED`, text events, `RUN_FINISHED`)
+- `POST /agent` -> AG-UI SSE stream (`RUN_STARTED`, text events, `RUN_FINISHED`); no request body required
 
 ## Next Improvements
 

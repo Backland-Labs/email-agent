@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { RunAgentInput } from "@ag-ui/core";
 
 import {
   encodeRunError,
@@ -33,6 +34,34 @@ describe("encode AG-UI events", () => {
     const content = decode(encoded);
 
     expect(content).toContain('"parentRunId":"run-0"');
+  });
+
+  it("encodes RUN_STARTED with optional input", () => {
+    const input: RunAgentInput = {
+      threadId: "thread-1",
+      runId: "run-1",
+      state: {},
+      messages: [
+        {
+          id: "message-user-1",
+          role: "user",
+          content: "Summarize unread emails"
+        }
+      ],
+      tools: [],
+      context: [],
+      forwardedProps: {}
+    };
+
+    const encoded = encodeRunStarted({
+      threadId: "thread-1",
+      runId: "run-1",
+      input
+    });
+    const content = decode(encoded);
+
+    expect(content).toContain('"input":{');
+    expect(content).toContain('"id":"message-user-1"');
   });
 
   it("encodes TEXT_MESSAGE_START SSE event", () => {

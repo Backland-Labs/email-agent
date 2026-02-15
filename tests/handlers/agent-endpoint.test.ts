@@ -1,29 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createEmailMetadata } from "../../src/domain/email-metadata.js";
-import type { EmailInsight } from "../../src/domain/email-insight.js";
+import type { EmailInsight, EmailCategory } from "../../src/domain/email-insight.js";
 import {
   handleAgentEndpoint,
   type AgentEndpointDependencies
 } from "../../src/handlers/agent-endpoint.js";
-
-function createValidRunInput() {
-  return {
-    threadId: "thread-1",
-    runId: "run-1",
-    state: {},
-    messages: [
-      {
-        id: "message-user-1",
-        role: "user",
-        content: "Summarize unread emails"
-      }
-    ],
-    tools: [],
-    context: [],
-    forwardedProps: {}
-  };
-}
 
 function createDependencies(): AgentEndpointDependencies {
   return {
@@ -35,11 +17,8 @@ function createDependencies(): AgentEndpointDependencies {
     fetchUnreadEmails: vi.fn(() => Promise.resolve([])),
     extractEmailInsight: vi.fn(() =>
       Promise.resolve({
-        priority: "low" as const,
-        sentiment: "neutral" as const,
-        actionItems: [],
-        relationshipContext: "Unknown" as const,
-        urgencySignals: []
+        summary: "A routine message.",
+        category: "business" as const
       })
     ),
     model: "anthropic:claude-sonnet-4-20250514",
@@ -47,23 +26,17 @@ function createDependencies(): AgentEndpointDependencies {
   };
 }
 
-function createRequest(body: unknown): Request {
+function createRequest(init?: RequestInit): Request {
   return new Request("http://localhost:3001/agent", {
     method: "POST",
-    headers: {
-      "content-type": "application/json"
-    },
-    body: JSON.stringify(body)
+    ...init
   });
 }
 
-function createInsight(priority: EmailInsight["priority"]): EmailInsight {
+function createInsight(category: EmailCategory): EmailInsight {
   return {
-    priority,
-    sentiment: "neutral",
-    actionItems: [],
-    relationshipContext: "Unknown",
-    urgencySignals: []
+    summary: `A ${category} message.`,
+    category
   };
 }
 
@@ -83,9 +56,9 @@ describe("handleAgentEndpoint", () => {
     });
 
     dependencies.fetchUnreadEmails = vi.fn(() => Promise.resolve([email]));
-    dependencies.extractEmailInsight = vi.fn(() => Promise.resolve(createInsight("high")));
+    dependencies.extractEmailInsight = vi.fn(() => Promise.resolve(createInsight("personal")));
 
-    const response = await handleAgentEndpoint(createRequest(createValidRunInput()), dependencies);
+    const response = await handleAgentEndpoint(createRequest(), dependencies);
     const body = await response.text();
 
     expect(response.status).toBe(200);
@@ -110,7 +83,7 @@ describe("handleAgentEndpoint", () => {
 
     dependencies.fetchUnreadEmails = vi.fn(() => Promise.reject(new Error("Gmail unavailable")));
 
-    const response = await handleAgentEndpoint(createRequest(createValidRunInput()), dependencies);
+    const response = await handleAgentEndpoint(createRequest(), dependencies);
     const body = await response.text();
 
     expect(body).toContain('"type":"RUN_ERROR"');
@@ -127,29 +100,36 @@ describe("handleAgentEndpoint", () => {
       })
     );
 
-    const response = await handleAgentEndpoint(createRequest(createValidRunInput()), dependencies);
+    const response = await handleAgentEndpoint(createRequest(), dependencies);
     const body = await response.text();
 
     expect(body).toContain('"type":"RUN_ERROR"');
     expect(body).toContain("Unknown error");
   });
 
-  it("emits RUN_ERROR for invalid request body", async () => {
-    const dependencies = createDependencies();
-
-    const response = await handleAgentEndpoint(createRequest({ invalid: true }), dependencies);
-    const body = await response.text();
-
-    expect(body).toContain('"type":"RUN_ERROR"');
-    expect(body).toContain("Invalid RunAgentInput payload");
-  });
-
-  it("emits RUN_ERROR for malformed JSON", async () => {
+  it("ignores JSON request body and still runs", async () => {
     const dependencies = createDependencies();
 
     const response = await handleAgentEndpoint(
-      new Request("http://localhost:3001/agent", {
-        method: "POST",
+      createRequest({
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ invalid: true })
+      }),
+      dependencies
+    );
+    const body = await response.text();
+
+    expect(body).toContain('"type":"RUN_FINISHED"');
+    expect(body).not.toContain('"type":"RUN_ERROR"');
+  });
+
+  it("ignores malformed JSON body and still runs", async () => {
+    const dependencies = createDependencies();
+
+    const response = await handleAgentEndpoint(
+      createRequest({
         headers: {
           "content-type": "application/json"
         },
@@ -159,8 +139,8 @@ describe("handleAgentEndpoint", () => {
     );
     const body = await response.text();
 
-    expect(body).toContain('"type":"RUN_ERROR"');
-    expect(body).toContain("Invalid RunAgentInput payload");
+    expect(body).toContain('"type":"RUN_FINISHED"');
+    expect(body).not.toContain('"type":"RUN_ERROR"');
   });
 
   it("emits no unread emails message when inbox is empty", async () => {
@@ -168,7 +148,7 @@ describe("handleAgentEndpoint", () => {
 
     dependencies.fetchUnreadEmails = vi.fn(() => Promise.resolve([]));
 
-    const response = await handleAgentEndpoint(createRequest(createValidRunInput()), dependencies);
+    const response = await handleAgentEndpoint(createRequest(), dependencies);
     const body = await response.text();
 
     expect(body).toContain('"type":"TEXT_MESSAGE_CONTENT"');
@@ -206,9 +186,9 @@ describe("handleAgentEndpoint", () => {
     dependencies.extractEmailInsight = vi
       .fn()
       .mockRejectedValueOnce(new Error("LLM failure"))
-      .mockResolvedValueOnce(createInsight("medium"));
+      .mockResolvedValueOnce(createInsight("business"));
 
-    const response = await handleAgentEndpoint(createRequest(createValidRunInput()), dependencies);
+    const response = await handleAgentEndpoint(createRequest(), dependencies);
     const body = await response.text();
 
     expect(dependencies.extractEmailInsight).toHaveBeenCalledTimes(2);
@@ -217,7 +197,7 @@ describe("handleAgentEndpoint", () => {
     expect(body).toContain('"type":"RUN_FINISHED"');
   });
 
-  it("includes action items and urgency signals in formatted markdown", async () => {
+  it("includes from, subject, and summary in formatted markdown", async () => {
     const dependencies = createDependencies();
 
     const email = createEmailMetadata({
@@ -234,24 +214,77 @@ describe("handleAgentEndpoint", () => {
     dependencies.fetchUnreadEmails = vi.fn(() => Promise.resolve([email]));
     dependencies.extractEmailInsight = vi.fn(() =>
       Promise.resolve({
-        priority: "high" as const,
-        sentiment: "urgent" as const,
-        actionItems: [
-          { task: "Review budget", owner: "you", deadline: "Feb 15" },
-          { task: "Reply to finance", owner: "you" }
-        ],
-        relationshipContext: "Manager" as const,
-        urgencySignals: ["need this by EOD"]
+        summary: "Lead is asking you to complete outstanding tasks.",
+        category: "personal" as const
       })
     );
 
-    const response = await handleAgentEndpoint(createRequest(createValidRunInput()), dependencies);
+    const response = await handleAgentEndpoint(createRequest(), dependencies);
     const body = await response.text();
 
-    expect(body).toContain("Review budget (Owner: you, Deadline: Feb 15)");
-    expect(body).toContain("Reply to finance (Owner: you)");
-    expect(body).toContain("need this by EOD");
-    expect(body).toContain("Priority:** High | **Sentiment:** Urgent");
+    expect(body).toContain("lead@example.com");
+    expect(body).toContain("Action items email");
+    expect(body).toContain("Lead is asking you to complete outstanding tasks.");
+  });
+
+  it("sorts results by category: personal, business, newsletter_or_spam", async () => {
+    const dependencies = createDependencies();
+
+    const spamEmail = createEmailMetadata({
+      id: "email-spam",
+      threadId: "thread-spam",
+      subject: "Weekly digest",
+      from: "news@newsletter.com",
+      to: "you@example.com",
+      date: "Sat, 14 Feb 2026 12:00:00 +0000",
+      snippet: "This week in tech",
+      bodyText: "Newsletter content"
+    });
+
+    const personalEmail = createEmailMetadata({
+      id: "email-personal",
+      threadId: "thread-personal",
+      subject: "Dinner tonight?",
+      from: "friend@example.com",
+      to: "you@example.com",
+      date: "Sat, 14 Feb 2026 12:01:00 +0000",
+      snippet: "Want to grab dinner",
+      bodyText: "Hey Max, dinner tonight?"
+    });
+
+    const businessEmail = createEmailMetadata({
+      id: "email-business",
+      threadId: "thread-business",
+      subject: "Q3 report",
+      from: "cfo@company.com",
+      to: "you@example.com",
+      date: "Sat, 14 Feb 2026 12:02:00 +0000",
+      snippet: "Q3 numbers",
+      bodyText: "Please review the Q3 financials"
+    });
+
+    dependencies.fetchUnreadEmails = vi.fn(() =>
+      Promise.resolve([spamEmail, personalEmail, businessEmail])
+    );
+
+    dependencies.extractEmailInsight = vi
+      .fn()
+      .mockResolvedValueOnce(createInsight("newsletter_or_spam"))
+      .mockResolvedValueOnce(createInsight("personal"))
+      .mockResolvedValueOnce(createInsight("business"));
+
+    const response = await handleAgentEndpoint(createRequest(), dependencies);
+    const body = await response.text();
+
+    const personalIndex = body.indexOf("Dinner tonight?");
+    const businessIndex = body.indexOf("Q3 report");
+    const spamIndex = body.indexOf("Weekly digest");
+
+    expect(personalIndex).toBeGreaterThan(-1);
+    expect(businessIndex).toBeGreaterThan(-1);
+    expect(spamIndex).toBeGreaterThan(-1);
+    expect(personalIndex).toBeLessThan(businessIndex);
+    expect(businessIndex).toBeLessThan(spamIndex);
   });
 
   it("stops processing email insights when request is already aborted", async () => {
@@ -270,17 +303,12 @@ describe("handleAgentEndpoint", () => {
     });
 
     dependencies.fetchUnreadEmails = vi.fn(() => Promise.resolve([email]));
-    dependencies.extractEmailInsight = vi.fn(() => Promise.resolve(createInsight("high")));
+    dependencies.extractEmailInsight = vi.fn(() => Promise.resolve(createInsight("personal")));
 
     abortController.abort();
 
     const response = await handleAgentEndpoint(
-      new Request("http://localhost:3001/agent", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json"
-        },
-        body: JSON.stringify(createValidRunInput()),
+      createRequest({
         signal: abortController.signal
       }),
       dependencies

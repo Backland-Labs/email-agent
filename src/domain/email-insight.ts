@@ -1,52 +1,25 @@
 import { z } from "zod";
 
-export type InsightPriority = "high" | "medium" | "low";
+export type EmailCategory = "personal" | "business" | "newsletter_or_spam";
 
-export const insightPrioritySchema = z.enum(["high", "medium", "low"]);
-
-export type InsightSentiment = "positive" | "neutral" | "negative" | "urgent";
-
-export const insightSentimentSchema = z.enum(["positive", "neutral", "negative", "urgent"]);
-
-export type ActionItem = {
-  task: string;
-  owner: string;
-  deadline?: string | undefined;
-};
-
-export const actionItemSchema = z.object({
-  task: z.string().min(1),
-  owner: z.string(),
-  deadline: z.string().optional()
-});
-
-export type RelationshipContext =
-  | "Manager"
-  | "Colleague"
-  | "Direct Report"
-  | "External"
-  | "Unknown";
-
-export const relationshipContextSchema = z.enum([
-  "Manager",
-  "Colleague",
-  "Direct Report",
-  "External",
-  "Unknown"
-]);
+export const emailCategorySchema = z.enum(["personal", "business", "newsletter_or_spam"]);
 
 export type EmailInsight = {
-  priority: InsightPriority;
-  sentiment: InsightSentiment;
-  actionItems: ActionItem[];
-  relationshipContext: RelationshipContext;
-  urgencySignals: string[];
+  summary: string;
+  category: EmailCategory;
 };
 
 export const emailInsightSchema = z.object({
-  priority: insightPrioritySchema,
-  sentiment: insightSentimentSchema,
-  actionItems: z.array(actionItemSchema),
-  relationshipContext: relationshipContextSchema,
-  urgencySignals: z.array(z.string())
+  summary: z.string().min(1),
+  category: emailCategorySchema
 });
+
+const CATEGORY_SORT_ORDER: Record<EmailCategory, number> = {
+  personal: 0,
+  business: 1,
+  newsletter_or_spam: 2
+};
+
+export function compareByCategory(a: EmailInsight, b: EmailInsight): number {
+  return CATEGORY_SORT_ORDER[a.category] - CATEGORY_SORT_ORDER[b.category];
+}

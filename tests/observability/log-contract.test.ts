@@ -88,8 +88,14 @@ describe("structured log contract", () => {
     expect(hasKey(runFailedEntry, "stack")).toBe(true);
     expect(hasKey(gmailFailedEntry, "stack")).toBe(true);
 
-    assertRunUsesSingleRequestId(entries, "run-success");
-    assertRunUsesSingleRequestId(entries, "run-failure");
+    const runIds = collectRunIds(entries);
+
+    expect(runIds.length).toBeGreaterThanOrEqual(2);
+
+    for (const runId of runIds) {
+      assertRunUsesSingleRequestId(entries, runId);
+    }
+
     assertNoForbiddenKeys(entries, FORBIDDEN_KEYS);
   });
 });
@@ -122,6 +128,15 @@ function getFirstEntry(entries: LogEntry[], eventName: string): LogEntry {
   }
 
   return matchedEntry;
+}
+
+function collectRunIds(entries: LogEntry[]): string[] {
+  const runIds = entries
+    .filter((entry) => entry.event === "agent.run_started")
+    .map((entry) => entry.runId)
+    .filter((runId): runId is string => typeof runId === "string" && runId.length > 0);
+
+  return [...new Set(runIds)];
 }
 
 function assertRunUsesSingleRequestId(entries: LogEntry[], runId: string): void {

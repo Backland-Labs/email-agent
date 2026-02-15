@@ -1,7 +1,6 @@
-import { RunAgentInputSchema, type RunAgentInput } from "@ag-ui/core";
 import { google, type Auth } from "googleapis";
 
-import type { EmailInsight } from "../domain/email-insight.js";
+import { compareByCategory, type EmailInsight } from "../domain/email-insight.js";
 import type { EmailMetadata } from "../domain/email-metadata.js";
 import { formatInsightMarkdown } from "./format-insight-markdown.js";
 import { extractEmailInsight } from "../services/ai/extract-email-insight.js";
@@ -22,12 +21,11 @@ import {
   encodeTextMessageStart
 } from "../services/streaming/encode-ag-ui-events.js";
 import { logger } from "../observability/logger.js";
+import type { RunAgentInput } from "@ag-ui/core";
 
 const DEFAULT_MODEL = "claude-sonnet-4-20250514";
 const agentLogger = logger.child({ route: "/agent" });
 const AGENT_LOG_CODES = {
-  invalidInput: "invalid_input",
-  inputParseFailed: "input_parse_failed",
   insightExtractFailed: "insight_extract_failed",
   runFailed: "run_failed"
 } as const;
@@ -56,24 +54,27 @@ export async function handleAgentEndpoint(
 ): Promise<Response> {
   const requestId = crypto.randomUUID();
   const requestLogger = agentLogger.child({ requestId });
-  const parsedInput = await parseRunAgentInput(request, requestLogger);
 
-  if (!parsedInput.success) {
-    requestLogger.warn(
-      {
-        event: "agent.request_rejected",
-        method: request.method,
-        reason: "invalid_run_agent_input",
-        code: AGENT_LOG_CODES.invalidInput
-      },
-      "Rejected invalid RunAgentInput payload"
-    );
-    return createErrorResponse("Invalid RunAgentInput payload");
+  let runId: string;
+  let threadId: string;
+
+  try {
+    const body: Partial<RunAgentInput> = request.body
+      ? ((await request.json()) as Partial<RunAgentInput>)
+      : {};
+    threadId = body.threadId || `thread-${requestId}`;
+    runId = body.runId || `run-${requestId}`;
+  } catch {
+    threadId = `thread-${requestId}`;
+    runId = `run-${requestId}`;
   }
 
-  const input = parsedInput.input;
+  const runContext = { runId, threadId };
   const messageId = dependencies.createMessageId();
-  const runLogger = requestLogger.child({ runId: input.runId, threadId: input.threadId });
+  const runLogger = requestLogger.child({
+    runId: runContext.runId,
+    threadId: runContext.threadId
+  });
 
   const stream = new ReadableStream<Uint8Array>({
     start: async (controller) => {
@@ -89,9 +90,8 @@ export async function handleAgentEndpoint(
       try {
         controller.enqueue(
           encodeRunStarted({
-            threadId: input.threadId,
-            runId: input.runId,
-            input
+            threadId: runContext.threadId,
+            runId: runContext.runId
           })
         );
 
@@ -105,8 +105,8 @@ export async function handleAgentEndpoint(
         const gmailClient = dependencies.createGmailMessagesApi(authClient);
         const unreadEmails = await dependencies.fetchUnreadEmails(gmailClient, {
           requestId,
-          runId: input.runId,
-          threadId: input.threadId
+          runId: runContext.runId,
+          threadId: runContext.threadId
         });
         unreadCount = unreadEmails.length;
 
@@ -119,6 +119,8 @@ export async function handleAgentEndpoint(
           );
         }
 
+        const results: { email: EmailMetadata; insight: EmailInsight }[] = [];
+
         for (const email of unreadEmails) {
           if (request.signal.aborted) {
             aborted = true;
@@ -128,18 +130,23 @@ export async function handleAgentEndpoint(
           try {
             const insight = await dependencies.extractEmailInsight(dependencies.model, email);
             generatedInsightCount += 1;
-
-            controller.enqueue(
-              encodeTextMessageContent({
-                messageId,
-                delta: formatInsightMarkdown(email, insight)
-              })
-            );
+            results.push({ email, insight });
           } catch (error) {
             failedInsightCount += 1;
             lastInsightFailure = error;
             continue;
           }
+        }
+
+        results.sort((a, b) => compareByCategory(a.insight, b.insight));
+
+        for (const { email, insight } of results) {
+          controller.enqueue(
+            encodeTextMessageContent({
+              messageId,
+              delta: formatInsightMarkdown(email, insight)
+            })
+          );
         }
 
         if (failedInsightCount > 0) {
@@ -162,8 +169,8 @@ export async function handleAgentEndpoint(
 
         controller.enqueue(
           encodeRunFinished({
-            threadId: input.threadId,
-            runId: input.runId
+            threadId: runContext.threadId,
+            runId: runContext.runId
           })
         );
 
@@ -203,10 +210,12 @@ export async function handleAgentEndpoint(
     }
   });
 
-  return new Response(stream, {
-    status: 200,
-    headers: SSE_HEADERS
-  });
+  return Promise.resolve(
+    new Response(stream, {
+      status: 200,
+      headers: SSE_HEADERS
+    })
+  );
 }
 
 function createDefaultDependencies(): AgentEndpointDependencies {
@@ -239,49 +248,6 @@ function createDefaultDependencies(): AgentEndpointDependencies {
     model: process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL,
     createMessageId: () => crypto.randomUUID()
   };
-}
-
-async function parseRunAgentInput(
-  request: Request,
-  requestLogger: typeof agentLogger
-): Promise<{ success: true; input: RunAgentInput } | { success: false }> {
-  try {
-    const body = (await request.json()) as unknown;
-    const parsed = RunAgentInputSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return { success: false };
-    }
-
-    return {
-      success: true,
-      input: parsed.data
-    };
-  } catch (error) {
-    requestLogger.warn(
-      { event: "agent.input_parse_failed", code: AGENT_LOG_CODES.inputParseFailed, err: error },
-      "Failed to parse RunAgentInput payload"
-    );
-    return { success: false };
-  }
-}
-
-function createErrorResponse(message: string): Response {
-  const stream = new ReadableStream<Uint8Array>({
-    start: (controller) => {
-      controller.enqueue(
-        encodeRunError({
-          message
-        })
-      );
-      controller.close();
-    }
-  });
-
-  return new Response(stream, {
-    status: 200,
-    headers: SSE_HEADERS
-  });
 }
 
 function toErrorMessage(error: unknown): string {

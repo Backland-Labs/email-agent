@@ -60,24 +60,6 @@ import { extractEmailInsight } from "../../src/services/ai/extract-email-insight
 import { createAuthClient } from "../../src/services/gmail/create-auth-client.js";
 import { fetchUnreadEmails } from "../../src/services/gmail/fetch-unread-emails.js";
 
-function createValidRunInput() {
-  return {
-    threadId: "thread-1",
-    runId: "run-1",
-    state: {},
-    messages: [
-      {
-        id: "message-user-1",
-        role: "user",
-        content: "Summarize unread emails"
-      }
-    ],
-    tools: [],
-    context: [],
-    forwardedProps: {}
-  };
-}
-
 describe("handleAgentEndpoint with default dependencies", () => {
   beforeEach(() => {
     vi.mocked(createAuthClient).mockClear();
@@ -103,11 +85,7 @@ describe("handleAgentEndpoint with default dependencies", () => {
 
     await handleAgentEndpoint(
       new Request("http://localhost:3001/agent", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json"
-        },
-        body: JSON.stringify(createValidRunInput())
+        method: "POST"
       })
     );
 
@@ -136,11 +114,7 @@ describe("handleAgentEndpoint with default dependencies", () => {
 
     const response = await handleAgentEndpoint(
       new Request("http://localhost:3001/agent", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json"
-        },
-        body: JSON.stringify(createValidRunInput())
+        method: "POST"
       })
     );
 

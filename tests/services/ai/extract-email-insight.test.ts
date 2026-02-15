@@ -41,11 +41,8 @@ describe("extractEmailInsight", () => {
     });
 
     const insight = {
-      priority: "high",
-      sentiment: "urgent",
-      actionItems: [{ task: "Send feedback", owner: "you", deadline: "tomorrow" }],
-      relationshipContext: "Manager",
-      urgencySignals: ["by tomorrow"]
+      summary: "Manager is requesting feedback on the planning document by tomorrow.",
+      category: "personal"
     };
 
     streamTextMock.mockReturnValue({
@@ -82,11 +79,8 @@ describe("extractEmailInsight", () => {
 
     streamTextMock.mockReturnValue({
       output: Promise.resolve({
-        priority: "low",
-        sentiment: "neutral",
-        actionItems: [],
-        relationshipContext: "Unknown",
-        urgencySignals: []
+        summary: "A routine message.",
+        category: "business"
       })
     });
 
@@ -97,7 +91,7 @@ describe("extractEmailInsight", () => {
       () => Promise.resolve(dependencies)
     );
 
-    expect(result.priority).toBe("low");
+    expect(result.category).toBe("business");
     expect(createModelMock).toHaveBeenCalledWith("anthropic:claude-sonnet-4-20250514");
   });
 
@@ -115,11 +109,8 @@ describe("extractEmailInsight", () => {
 
     streamTextMock.mockReturnValue({
       output: Promise.resolve({
-        priority: "critical",
-        sentiment: "neutral",
-        actionItems: [],
-        relationshipContext: "Manager",
-        urgencySignals: []
+        summary: "Valid summary.",
+        category: "invalid_category"
       })
     });
 
@@ -163,11 +154,8 @@ describe("extractEmailInsight", () => {
 
     streamTextMock.mockReturnValue({
       output: Promise.resolve({
-        priority: "low",
-        sentiment: "neutral",
-        actionItems: [],
-        relationshipContext: "Unknown",
-        urgencySignals: []
+        summary: "Routine schema check.",
+        category: "business"
       })
     });
 
