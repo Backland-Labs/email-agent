@@ -213,5 +213,18 @@ function truncateContextMessages(
     .filter((message) => message.id !== targetEmail.id)
     .slice(-(maxContextMessages - 1));
 
-  return [targetEmail, ...recentWithoutTarget];
+  return sortMessagesChronologically([targetEmail, ...recentWithoutTarget]);
+}
+
+function sortMessagesChronologically(messages: EmailMetadata[]): EmailMetadata[] {
+  return [...messages].sort((left, right) => {
+    const leftDate = Date.parse(left.date);
+    const rightDate = Date.parse(right.date);
+
+    if (!Number.isNaN(leftDate) && !Number.isNaN(rightDate)) {
+      return leftDate - rightDate;
+    }
+
+    return 0;
+  });
 }

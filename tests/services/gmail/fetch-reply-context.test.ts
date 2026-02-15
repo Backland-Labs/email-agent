@@ -13,7 +13,7 @@ function toBase64Url(value: string): string {
     .replace(/=+$/u, "");
 }
 
-function createMessage(id: string, threadId: string) {
+function createMessage(id: string, threadId: string, date = "Sat, 14 Feb 2026 10:00:00 +0000") {
   return {
     id,
     threadId,
@@ -23,7 +23,7 @@ function createMessage(id: string, threadId: string) {
         { name: "Subject", value: `Subject ${id}` },
         { name: "From", value: "sender@example.com" },
         { name: "To", value: "recipient@example.com" },
-        { name: "Date", value: "Sat, 14 Feb 2026 10:00:00 +0000" },
+        { name: "Date", value: date },
         { name: "Message-ID", value: `<${id}@example.com>` },
         { name: "References", value: "<ancestor@example.com>" }
       ],
@@ -139,6 +139,38 @@ describe("fetchReplyContext", () => {
       "thread-5"
     ]);
     expect(context.contextMessageCount).toBe(3);
+  });
+
+  it("keeps chronological ordering when target is outside the recent window", async () => {
+    const gmailClient: GmailReplyContextApi = {
+      getMessage: () =>
+        Promise.resolve({
+          data: createMessage("target-email", "thread-1", "Mon, 10 Jan 2026 10:00:00 +0000")
+        }),
+      getThread: () =>
+        Promise.resolve({
+          data: {
+            messages: [
+              createMessage("thread-1", "thread-1", "Wed, 01 Jan 2026 10:00:00 +0000"),
+              createMessage("target-email", "thread-1", "Mon, 10 Jan 2026 10:00:00 +0000"),
+              createMessage("thread-2", "thread-1", "Sun, 31 Dec 2025 10:00:00 +0000"),
+              createMessage("thread-3", "thread-1", "Fri, 09 Jan 2026 10:00:00 +0000"),
+              createMessage("thread-4", "thread-1", "Tue, 14 Jan 2026 10:00:00 +0000")
+            ]
+          }
+        })
+    };
+
+    const context = await fetchReplyContext(gmailClient, {
+      emailId: "target-email",
+      maxContextMessages: 3
+    });
+
+    expect(context.contextMessages.map((message) => message.id)).toEqual([
+      "thread-3",
+      "target-email",
+      "thread-4"
+    ]);
   });
 
   it("returns recent window when target is already in bounded context", async () => {
