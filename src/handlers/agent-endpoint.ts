@@ -165,7 +165,7 @@ async function parseRunAgentInput(
   request: Request
 ): Promise<{ success: true; input: RunAgentInput } | { success: false }> {
   try {
-    const body = await request.json();
+    const body = (await request.json()) as unknown;
     const parsed = RunAgentInputSchema.safeParse(body);
 
     if (!parsed.success) {
