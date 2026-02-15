@@ -5,6 +5,9 @@ import { createServerFetchHandler, startServer, type ServerRouteHandlers } from 
 function createHandlers(): ServerRouteHandlers {
   return {
     handleAgentEndpoint: vi.fn(() => Promise.resolve(new Response("agent", { status: 200 }))),
+    handleDraftReplyEndpoint: vi.fn(() =>
+      Promise.resolve(new Response("draft-reply", { status: 200 }))
+    ),
     handleHealthEndpoint: vi.fn(() => Response.json({ status: "ok" }, { status: 200 }))
   };
 }
@@ -39,6 +42,22 @@ describe("server routing", () => {
     expect(handlers.handleHealthEndpoint).toHaveBeenCalledTimes(1);
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ status: "ok" });
+  });
+
+  it("dispatches POST /draft-reply to draft reply handler", async () => {
+    const handlers = createHandlers();
+    const fetchHandler = createServerFetchHandler(handlers);
+
+    const response = await fetchHandler(
+      new Request("http://localhost:3001/draft-reply", {
+        method: "POST",
+        body: JSON.stringify({ emailId: "email-1" })
+      })
+    );
+
+    expect(handlers.handleDraftReplyEndpoint).toHaveBeenCalledTimes(1);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("draft-reply");
   });
 
   it("returns 404 for unknown paths", async () => {
@@ -76,6 +95,20 @@ describe("server routing", () => {
     const response = await fetchHandler(
       new Request("http://localhost:3001/health", {
         method: "POST"
+      })
+    );
+
+    expect(response.status).toBe(405);
+    expect(await response.text()).toBe("Method Not Allowed");
+  });
+
+  it("returns 405 for non-POST /draft-reply requests", async () => {
+    const handlers = createHandlers();
+    const fetchHandler = createServerFetchHandler(handlers);
+
+    const response = await fetchHandler(
+      new Request("http://localhost:3001/draft-reply", {
+        method: "GET"
       })
     );
 
