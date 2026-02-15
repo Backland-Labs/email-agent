@@ -1,3 +1,5 @@
 coverage
 dist
 bun.lock
+formal/**/*.tla
+formal/**/*.cfg

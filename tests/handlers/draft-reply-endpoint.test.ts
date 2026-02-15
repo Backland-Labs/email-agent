@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Auth } from "googleapis";
 
+import type { DraftReplyModelOutput } from "../../src/domain/draft-reply-result.js";
 import { createEmailMetadata } from "../../src/domain/email-metadata.js";
 import {
   handleDraftReplyEndpoint,
@@ -72,6 +73,23 @@ function terminalEventCount(body: string): number {
   return (
     countOccurrences(body, '"type":"RUN_FINISHED"') + countOccurrences(body, '"type":"RUN_ERROR"')
   );
+}
+
+type Deferred<T> = {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+};
+
+function createDeferred<T>(): Deferred<T> {
+  let resolvePromise!: (value: T) => void;
+  const promise = new Promise<T>((resolve) => {
+    resolvePromise = resolve;
+  });
+
+  return {
+    promise,
+    resolve: resolvePromise
+  };
 }
 
 describe("handleDraftReplyEndpoint", () => {
@@ -308,20 +326,15 @@ describe("handleDraftReplyEndpoint", () => {
     expect(terminalEventCount(body)).toBe(1);
   });
 
-  it("does not call createReplyDraft when request is aborted before draft save", async () => {
+  it("does not call createReplyDraft when abort happens after draft extraction and before save", async () => {
     const dependencies = createDependencies();
     const abortController = new AbortController();
+    const extractStarted = createDeferred<undefined>();
+    const extractResolved = createDeferred<DraftReplyModelOutput>();
 
-    dependencies.extractDraftReply = vi.fn(async () => {
-      abortController.abort();
-
-      await Promise.resolve();
-
-      return {
-        draftText: "Thanks for the note. I will send the update by tomorrow.",
-        subjectSuggestion: "Re: Planning",
-        riskFlags: []
-      };
+    dependencies.extractDraftReply = vi.fn(() => {
+      extractStarted.resolve(undefined);
+      return extractResolved.promise;
     });
 
     const response = await handleDraftReplyEndpoint(
@@ -332,6 +345,16 @@ describe("handleDraftReplyEndpoint", () => {
       }),
       dependencies
     );
+
+    await extractStarted.promise;
+
+    extractResolved.resolve({
+      draftText: "Thanks for the note. I will send the update by tomorrow.",
+      subjectSuggestion: "Re: Planning",
+      riskFlags: []
+    });
+    abortController.abort();
+
     const body = await response.text();
 
     expect(body).toContain('"type":"RUN_ERROR"');

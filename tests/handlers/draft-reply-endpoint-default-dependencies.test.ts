@@ -234,4 +234,27 @@ describe("handleDraftReplyEndpoint with default dependencies", () => {
       })
     );
   });
+
+  it("creates uncached Gmail clients when auth client is non-object", async () => {
+    vi.mocked(createAuthClient).mockImplementation(
+      () => "non-object-auth" as unknown as ReturnType<typeof createAuthClient>
+    );
+    vi.mocked(fetchReplyContext).mockImplementation(() => Promise.resolve(createReplyContext()));
+
+    const response = await handleDraftReplyEndpoint(
+      new Request("http://localhost:3001/draft-reply", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          emailId: "target-email"
+        })
+      })
+    );
+
+    const body = await response.text();
+
+    expect(body).toContain('"type":"RUN_FINISHED"');
+    expect(vi.mocked(google.gmail)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(createReplyDraft)).toHaveBeenCalledTimes(1);
+  });
 });

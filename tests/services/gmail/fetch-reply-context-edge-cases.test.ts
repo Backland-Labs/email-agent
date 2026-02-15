@@ -13,7 +13,7 @@ function toBase64Url(value: string): string {
     .replace(/=+$/u, "");
 }
 
-function createMessage(id: string, threadId: string) {
+function createMessage(id: string, threadId: string, date = "Sat, 14 Feb 2026 10:00:00 +0000") {
   return {
     id,
     threadId,
@@ -23,7 +23,7 @@ function createMessage(id: string, threadId: string) {
         { name: "Subject", value: `Subject ${id}` },
         { name: "From", value: "sender@example.com" },
         { name: "To", value: "recipient@example.com" },
-        { name: "Date", value: "Sat, 14 Feb 2026 10:00:00 +0000" }
+        { name: "Date", value: date }
       ],
       body: {
         data: toBase64Url(`Body ${id}`)
@@ -164,5 +164,33 @@ describe("fetchReplyContext edge cases", () => {
     });
 
     expect(context.replyHeaders).toEqual({});
+  });
+
+  it("keeps context ordering stable when dates are unparsable", async () => {
+    const targetMessage = createMessage("target-email", "thread-1", "not-a-date");
+    const contextMessageOne = createMessage("context-email-1", "thread-1", "still-not-a-date");
+    const contextMessageTwo = createMessage(
+      "context-email-2",
+      "thread-1",
+      "another-unparsable-date"
+    );
+
+    const gmailClient: GmailReplyContextApi = {
+      getMessage: () => Promise.resolve({ data: targetMessage }),
+      getThread: () =>
+        Promise.resolve({
+          data: { messages: [targetMessage, contextMessageOne, contextMessageTwo] }
+        })
+    };
+
+    const context = await fetchReplyContext(gmailClient, {
+      emailId: "target-email",
+      maxContextMessages: 2
+    });
+
+    expect(context.contextMessages.map((message) => message.id)).toEqual([
+      "target-email",
+      "context-email-2"
+    ]);
   });
 });
