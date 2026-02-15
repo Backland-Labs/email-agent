@@ -19,7 +19,7 @@
     "coverage": "vitest run --coverage",
     "lint-staged": "lint-staged",
     "structure:check": "node scripts/check-structure.mjs",
-    "opencode:append-thread": "bun run scripts/append-opencode-thread.ts",
+    "opencode:append-thread": "bun run scripts/append-opencode-thread.ts --format json",
     "check": "bun run structure:check && bun run format:check && bun run lint && bun run typecheck && bun run test",
     "prepare": "simple-git-hooks"
   },

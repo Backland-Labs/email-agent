@@ -275,6 +275,24 @@ All emails are streamed progressively -- the user sees each insight appear as it
 - [x] Double quotes, semicolons, no trailing commas (Prettier config)
 - [x] `type` keyword for type definitions, never `interface` (ESLint rule)
 
+## Current Status Snapshot
+
+As of 2026-02-14, v1 delivery is complete and validated by `bun run check`.
+
+- All core phases (`1`–`5`) are implemented and pass existing tests.
+- The implementation meets the scoped functional + non-functional acceptance criteria.
+- Additional repo tooling update is in progress/useful work:
+  - `scripts/append-opencode-thread.ts` now supports JSON/text output modes,
+    multi-part PR comments, GitHub token auto-resolution, and safer update/delete flows.
+
+## Suggested Next Issues
+
+- [ ] Add bounded retry/backoff around transient Gmail and LLM API failures.
+- [ ] Add startup environment validation with explicit missing-variable errors.
+- [ ] Add run-level observability (emails fetched, success rate, skips, errors).
+- [ ] Expand resilience tests for request aborts, malformed payloads, and partial Gmail list/get failures.
+- [ ] Run AG-UI smoke checks with `../agent-ui` for empty inbox and interrupted run scenarios.
+
 ## Dependencies and Risks
 
 | Risk                                            | Likelihood      | Mitigation                                                      |

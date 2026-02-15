@@ -9,6 +9,16 @@ A Bun + TypeScript agent that reads unread Gmail messages and streams structured
 - Extracts structured insight per email (priority, sentiment, action items, relationship, urgency)
 - Streams markdown insights as AG-UI events for `agent-ui`
 
+## Current Status
+
+v1 is implemented and passing the full quality gate:
+
+- Unread inbox fetch + parsing
+- Insight extraction with the Vercel AI SDK and schema validation
+- AG-UI SSE lifecycle (`RUN_STARTED` to `RUN_FINISHED`)
+- Health endpoint and request validation
+- 100% test coverage and lint/type checks
+
 ## Prerequisites
 
 - Bun 1.1+
@@ -72,6 +82,13 @@ Default port is `3001` (override with `PORT`).
 - `GET /health` -> `{ "status": "ok" }`
 - `POST /agent` -> AG-UI SSE stream (`RUN_STARTED`, text events, `RUN_FINISHED`)
 
+## Next Improvements
+
+- Add transient-retry and backoff for unstable Gmail/LLM calls
+- Add startup env/config validation with actionable errors
+- Add run telemetry (emails fetched, successful insights, skipped failures)
+- Expand resilience tests (timeouts, partial failures, malformed payloads)
+
 ## Connect to agent-ui
 
 In `../agent-ui/agents.config.json`, add:
@@ -92,3 +109,25 @@ Run the full local gate:
 ```bash
 bun run check
 ```
+
+## Opencode Thread Export Utility
+
+Utility for posting Opencode session transcripts to GitHub PR comments:
+
+```bash
+bun run opencode:append-thread --pr <PR_NUMBER> [--format text|json]
+```
+
+- Defaults to JSON mode when run via script default and supports `--json`.
+- Supports `--pr`, `--repo`, and `--session` overrides.
+- Supports `--format text` and `--format json`.
+- Automatically updates existing thread comments and removes stale split comments.
+
+Required credentials:
+
+- `GITHUB_TOKEN` or `GH_TOKEN` (or authenticated `gh` CLI)
+
+Optional env:
+
+- `OPENCODE_SESSION_ID`
+- `OPENCODE_THREAD_FORMAT`
