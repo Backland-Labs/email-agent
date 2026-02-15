@@ -7,24 +7,6 @@ import {
   type AgentEndpointDependencies
 } from "../../src/handlers/agent-endpoint.js";
 
-function createValidRunInput() {
-  return {
-    threadId: "thread-1",
-    runId: "run-1",
-    state: {},
-    messages: [
-      {
-        id: "message-user-1",
-        role: "user",
-        content: "Summarize unread emails"
-      }
-    ],
-    tools: [],
-    context: [],
-    forwardedProps: {}
-  };
-}
-
 function createDependencies(): AgentEndpointDependencies {
   return {
     createAuthClient: vi.fn(() => ({ token: "token" })),
@@ -44,13 +26,10 @@ function createDependencies(): AgentEndpointDependencies {
   };
 }
 
-function createRequest(body: unknown): Request {
+function createRequest(init?: RequestInit): Request {
   return new Request("http://localhost:3001/agent", {
     method: "POST",
-    headers: {
-      "content-type": "application/json"
-    },
-    body: JSON.stringify(body)
+    ...init
   });
 }
 
@@ -79,7 +58,7 @@ describe("handleAgentEndpoint", () => {
     dependencies.fetchUnreadEmails = vi.fn(() => Promise.resolve([email]));
     dependencies.extractEmailInsight = vi.fn(() => Promise.resolve(createInsight("personal")));
 
-    const response = await handleAgentEndpoint(createRequest(createValidRunInput()), dependencies);
+    const response = await handleAgentEndpoint(createRequest(), dependencies);
     const body = await response.text();
 
     expect(response.status).toBe(200);
@@ -104,7 +83,7 @@ describe("handleAgentEndpoint", () => {
 
     dependencies.fetchUnreadEmails = vi.fn(() => Promise.reject(new Error("Gmail unavailable")));
 
-    const response = await handleAgentEndpoint(createRequest(createValidRunInput()), dependencies);
+    const response = await handleAgentEndpoint(createRequest(), dependencies);
     const body = await response.text();
 
     expect(body).toContain('"type":"RUN_ERROR"');
@@ -121,29 +100,36 @@ describe("handleAgentEndpoint", () => {
       })
     );
 
-    const response = await handleAgentEndpoint(createRequest(createValidRunInput()), dependencies);
+    const response = await handleAgentEndpoint(createRequest(), dependencies);
     const body = await response.text();
 
     expect(body).toContain('"type":"RUN_ERROR"');
     expect(body).toContain("Unknown error");
   });
 
-  it("emits RUN_ERROR for invalid request body", async () => {
-    const dependencies = createDependencies();
-
-    const response = await handleAgentEndpoint(createRequest({ invalid: true }), dependencies);
-    const body = await response.text();
-
-    expect(body).toContain('"type":"RUN_ERROR"');
-    expect(body).toContain("Invalid RunAgentInput payload");
-  });
-
-  it("emits RUN_ERROR for malformed JSON", async () => {
+  it("ignores JSON request body and still runs", async () => {
     const dependencies = createDependencies();
 
     const response = await handleAgentEndpoint(
-      new Request("http://localhost:3001/agent", {
-        method: "POST",
+      createRequest({
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ invalid: true })
+      }),
+      dependencies
+    );
+    const body = await response.text();
+
+    expect(body).toContain('"type":"RUN_FINISHED"');
+    expect(body).not.toContain('"type":"RUN_ERROR"');
+  });
+
+  it("ignores malformed JSON body and still runs", async () => {
+    const dependencies = createDependencies();
+
+    const response = await handleAgentEndpoint(
+      createRequest({
         headers: {
           "content-type": "application/json"
         },
@@ -153,8 +139,8 @@ describe("handleAgentEndpoint", () => {
     );
     const body = await response.text();
 
-    expect(body).toContain('"type":"RUN_ERROR"');
-    expect(body).toContain("Invalid RunAgentInput payload");
+    expect(body).toContain('"type":"RUN_FINISHED"');
+    expect(body).not.toContain('"type":"RUN_ERROR"');
   });
 
   it("emits no unread emails message when inbox is empty", async () => {
@@ -162,7 +148,7 @@ describe("handleAgentEndpoint", () => {
 
     dependencies.fetchUnreadEmails = vi.fn(() => Promise.resolve([]));
 
-    const response = await handleAgentEndpoint(createRequest(createValidRunInput()), dependencies);
+    const response = await handleAgentEndpoint(createRequest(), dependencies);
     const body = await response.text();
 
     expect(body).toContain('"type":"TEXT_MESSAGE_CONTENT"');
@@ -202,7 +188,7 @@ describe("handleAgentEndpoint", () => {
       .mockRejectedValueOnce(new Error("LLM failure"))
       .mockResolvedValueOnce(createInsight("business"));
 
-    const response = await handleAgentEndpoint(createRequest(createValidRunInput()), dependencies);
+    const response = await handleAgentEndpoint(createRequest(), dependencies);
     const body = await response.text();
 
     expect(dependencies.extractEmailInsight).toHaveBeenCalledTimes(2);
@@ -233,7 +219,7 @@ describe("handleAgentEndpoint", () => {
       })
     );
 
-    const response = await handleAgentEndpoint(createRequest(createValidRunInput()), dependencies);
+    const response = await handleAgentEndpoint(createRequest(), dependencies);
     const body = await response.text();
 
     expect(body).toContain("lead@example.com");
@@ -287,7 +273,7 @@ describe("handleAgentEndpoint", () => {
       .mockResolvedValueOnce(createInsight("personal"))
       .mockResolvedValueOnce(createInsight("business"));
 
-    const response = await handleAgentEndpoint(createRequest(createValidRunInput()), dependencies);
+    const response = await handleAgentEndpoint(createRequest(), dependencies);
     const body = await response.text();
 
     const personalIndex = body.indexOf("Dinner tonight?");
@@ -322,12 +308,7 @@ describe("handleAgentEndpoint", () => {
     abortController.abort();
 
     const response = await handleAgentEndpoint(
-      new Request("http://localhost:3001/agent", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json"
-        },
-        body: JSON.stringify(createValidRunInput()),
+      createRequest({
         signal: abortController.signal
       }),
       dependencies

@@ -45,7 +45,7 @@ async function runSuccessScenario(): Promise<void> {
       })
   });
 
-  await runAgentRequest("run-success", "thread-success", dependencies);
+  await runAgentRequest(dependencies);
 }
 
 async function runFailureScenario(): Promise<void> {
@@ -54,7 +54,7 @@ async function runFailureScenario(): Promise<void> {
     get: () => Promise.reject(new Error("Unreachable get in failure scenario"))
   });
 
-  await runAgentRequest("run-failure", "thread-failure", dependencies);
+  await runAgentRequest(dependencies);
 }
 
 function createDependencies(gmailClient: GmailMessagesApi): AgentEndpointDependencies {
@@ -68,39 +68,13 @@ function createDependencies(gmailClient: GmailMessagesApi): AgentEndpointDepende
   };
 }
 
-async function runAgentRequest(
-  runId: string,
-  threadId: string,
-  dependencies: AgentEndpointDependencies
-): Promise<void> {
+async function runAgentRequest(dependencies: AgentEndpointDependencies): Promise<void> {
   const request = new Request("http://localhost:3001/agent", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json"
-    },
-    body: JSON.stringify(createRunInput(runId, threadId))
+    method: "POST"
   });
 
   const response = await handleAgentEndpoint(request, dependencies);
   await response.text();
-}
-
-function createRunInput(runId: string, threadId: string) {
-  return {
-    threadId,
-    runId,
-    state: {},
-    messages: [
-      {
-        id: `message-${runId}`,
-        role: "user",
-        content: "Summarize unread emails"
-      }
-    ],
-    tools: [],
-    context: [],
-    forwardedProps: {}
-  };
 }
 
 function toBase64Url(value: string): string {
