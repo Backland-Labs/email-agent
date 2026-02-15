@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { describe, expect, it, vi } from "vitest";
 
 import { createEmailMetadata } from "../../src/domain/email-metadata.js";
@@ -304,6 +305,56 @@ describe("handleDraftReplyEndpoint", () => {
     expect(body).toContain('"code":"request_aborted"');
     expect(dependencies.fetchReplyContext).toHaveBeenCalledTimes(0);
     expect(terminalEventCount(body)).toBe(1);
+  });
+
+  it("does not call createReplyDraft when request is aborted before draft save", async () => {
+    const dependencies = createDependencies();
+    const abortController = new AbortController();
+
+    dependencies.extractDraftReply = vi.fn(async () => {
+      abortController.abort();
+
+      await Promise.resolve();
+
+      return {
+        draftText: "Thanks for the note. I will send the update by tomorrow.",
+        subjectSuggestion: "Re: Planning",
+        riskFlags: []
+      };
+    });
+
+    const response = await handleDraftReplyEndpoint(
+      createRequest({
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ emailId: "target-email" }),
+        signal: abortController.signal
+      }),
+      dependencies
+    );
+    const body = await response.text();
+
+    expect(body).toContain('"type":"RUN_ERROR"');
+    expect(body).toContain('"code":"request_aborted"');
+    expect(dependencies.createReplyDraft).toHaveBeenCalledTimes(0);
+    expect(dependencies.extractDraftReply).toHaveBeenCalledTimes(1);
+    expect(terminalEventCount(body)).toBe(1);
+  });
+
+  it("creates exactly one draft for a successful run", async () => {
+    const dependencies = createDependencies();
+
+    const response = await handleDraftReplyEndpoint(
+      createRequest({
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ emailId: "target-email", runId: "run-once" })
+      }),
+      dependencies
+    );
+    const body = await response.text();
+
+    expect(body).toContain('"type":"RUN_FINISHED"');
+    expect(body).not.toContain('"type":"RUN_ERROR"');
+    expect(dependencies.createReplyDraft).toHaveBeenCalledTimes(1);
   });
 
   it("never emits events after terminal event", async () => {

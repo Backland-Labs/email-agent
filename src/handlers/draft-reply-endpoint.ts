@@ -204,6 +204,8 @@ export async function handleDraftReplyEndpoint(
           );
         }
 
+        assertDraftReplyNotAborted(request.signal);
+
         const savedDraft = await dependencies
           .createReplyDraft(gmailDraftsApi, {
             threadId: context.threadId,
@@ -224,8 +226,6 @@ export async function handleDraftReplyEndpoint(
               error
             );
           });
-
-        assertDraftReplyNotAborted(request.signal);
 
         controller.enqueue(
           encodeTextMessageContent({
