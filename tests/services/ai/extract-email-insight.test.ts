@@ -125,7 +125,7 @@ describe("extractEmailInsight", () => {
 
     await expect(
       extractEmailInsight("anthropic:claude-sonnet-4-20250514", email, dependencies)
-    ).rejects.toThrow('Failed to extract insight for email "Schema failure" (email-2)');
+    ).rejects.toThrow("Failed to extract insight for email (email-2)");
   });
 
   it("wraps LLM errors with email context", async () => {
@@ -146,9 +146,7 @@ describe("extractEmailInsight", () => {
 
     await expect(
       extractEmailInsight("anthropic:claude-sonnet-4-20250514", email, dependencies)
-    ).rejects.toThrow(
-      'Failed to extract insight for email "Provider failure" (email-3): Provider unavailable'
-    );
+    ).rejects.toThrow("Failed to extract insight for email (email-3): Provider unavailable");
   });
 
   it("calls Output.object with the EmailInsight schema", async () => {
@@ -200,8 +198,6 @@ describe("extractEmailInsight", () => {
 
     await expect(
       extractEmailInsight("anthropic:claude-sonnet-4-20250514", email, dependencies)
-    ).rejects.toThrow(
-      'Failed to extract insight for email "Unknown failure" (email-6): Unknown error'
-    );
+    ).rejects.toThrow("Failed to extract insight for email (email-6): Unknown error");
   });
 });

@@ -177,4 +177,27 @@ describe("fetchUnreadEmails", () => {
 
     expect(result).toEqual([]);
   });
+
+  it("rethrows list failures", async () => {
+    const gmailClient: GmailMessagesApi = {
+      list: () => Promise.reject(new Error("List failed")),
+      get: () => Promise.resolve({ data: createMessage("unused") })
+    };
+
+    await expect(fetchUnreadEmails(gmailClient)).rejects.toThrow("List failed");
+  });
+
+  it("rethrows message fetch failures", async () => {
+    const gmailClient: GmailMessagesApi = {
+      list: () =>
+        Promise.resolve({
+          data: {
+            messages: [{ id: "1" }]
+          }
+        }),
+      get: () => Promise.reject(new Error("Get failed"))
+    };
+
+    await expect(fetchUnreadEmails(gmailClient)).rejects.toThrow("Get failed");
+  });
 });
