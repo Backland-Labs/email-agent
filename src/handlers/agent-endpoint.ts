@@ -21,6 +21,7 @@ import {
   encodeTextMessageStart
 } from "../services/streaming/encode-ag-ui-events.js";
 import { logger } from "../observability/logger.js";
+import type { RunAgentInput } from "@ag-ui/core";
 
 const DEFAULT_MODEL = "claude-sonnet-4-20250514";
 const agentLogger = logger.child({ route: "/agent" });
@@ -47,13 +48,28 @@ export type AgentEndpointDependencies = {
   createMessageId: () => string;
 };
 
-export function handleAgentEndpoint(
+export async function handleAgentEndpoint(
   request: Request,
   dependencies: AgentEndpointDependencies = createDefaultDependencies()
 ): Promise<Response> {
   const requestId = crypto.randomUUID();
   const requestLogger = agentLogger.child({ requestId });
-  const runContext = createRunContext(requestId);
+
+  let runId: string;
+  let threadId: string;
+
+  try {
+    const body: Partial<RunAgentInput> = request.body
+      ? ((await request.json()) as Partial<RunAgentInput>)
+      : {};
+    threadId = body.threadId || `thread-${requestId}`;
+    runId = body.runId || `run-${requestId}`;
+  } catch {
+    threadId = `thread-${requestId}`;
+    runId = `run-${requestId}`;
+  }
+
+  const runContext = { runId, threadId };
   const messageId = dependencies.createMessageId();
   const runLogger = requestLogger.child({
     runId: runContext.runId,
@@ -231,13 +247,6 @@ function createDefaultDependencies(): AgentEndpointDependencies {
     extractEmailInsight,
     model: process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL,
     createMessageId: () => crypto.randomUUID()
-  };
-}
-
-function createRunContext(requestId: string): { runId: string; threadId: string } {
-  return {
-    runId: `run-${requestId}`,
-    threadId: `thread-${requestId}`
   };
 }
 
