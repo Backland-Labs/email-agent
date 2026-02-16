@@ -96,6 +96,13 @@ Default port is `3001` (override with `PORT`).
 
 `/draft-reply` persists the generated reply as a Gmail draft in the same thread and returns `gmailDraftId` in `RUN_FINISHED.result`. It does not send email.
 
+### API Documentation
+
+- `GET /api-docs.json` -> OpenAPI 3.0 specification in JSON format
+- `GET /api-docs.md` -> API documentation in Markdown format
+
+The API documentation is automatically generated from the Zod schemas and includes all endpoints, request/response schemas, and descriptions. Access the docs at `http://localhost:3001/api-docs.json` or `http://localhost:3001/api-docs.md`.
+
 ## Next Improvements
 
 - Add transient-retry and backoff for unstable Gmail/LLM calls

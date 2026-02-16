@@ -8,7 +8,9 @@ function createHandlers(): ServerRouteHandlers {
     handleDraftReplyEndpoint: vi.fn(() =>
       Promise.resolve(new Response("draft-reply", { status: 200 }))
     ),
-    handleHealthEndpoint: vi.fn(() => Response.json({ status: "ok" }, { status: 200 }))
+    handleHealthEndpoint: vi.fn(() => Response.json({ status: "ok" }, { status: 200 })),
+    handleApiDocsJsonEndpoint: vi.fn(() => Response.json({ openapi: "3.0.0" }, { status: 200 })),
+    handleApiDocsMarkdownEndpoint: vi.fn(() => new Response("# API Docs", { status: 200 }))
   };
 }
 
@@ -255,5 +257,61 @@ describe("server routing", () => {
       writable: true,
       value: originalBun
     });
+  });
+
+  it("dispatches GET /api-docs.json to api docs json handler", async () => {
+    const handlers = createHandlers();
+    const fetchHandler = createServerFetchHandler(handlers);
+
+    const response = await fetchHandler(
+      new Request("http://localhost:3001/api-docs.json", {
+        method: "GET"
+      })
+    );
+
+    expect(handlers.handleApiDocsJsonEndpoint).toHaveBeenCalledTimes(1);
+    expect(response.status).toBe(200);
+  });
+
+  it("dispatches GET /api-docs.md to api docs markdown handler", async () => {
+    const handlers = createHandlers();
+    const fetchHandler = createServerFetchHandler(handlers);
+
+    const response = await fetchHandler(
+      new Request("http://localhost:3001/api-docs.md", {
+        method: "GET"
+      })
+    );
+
+    expect(handlers.handleApiDocsMarkdownEndpoint).toHaveBeenCalledTimes(1);
+    expect(response.status).toBe(200);
+  });
+
+  it("returns 405 for non-GET /api-docs.json requests", async () => {
+    const handlers = createHandlers();
+    const fetchHandler = createServerFetchHandler(handlers);
+
+    const response = await fetchHandler(
+      new Request("http://localhost:3001/api-docs.json", {
+        method: "POST"
+      })
+    );
+
+    expect(response.status).toBe(405);
+    expect(await response.text()).toBe("Method Not Allowed");
+  });
+
+  it("returns 405 for non-GET /api-docs.md requests", async () => {
+    const handlers = createHandlers();
+    const fetchHandler = createServerFetchHandler(handlers);
+
+    const response = await fetchHandler(
+      new Request("http://localhost:3001/api-docs.md", {
+        method: "POST"
+      })
+    );
+
+    expect(response.status).toBe(405);
+    expect(await response.text()).toBe("Method Not Allowed");
   });
 });

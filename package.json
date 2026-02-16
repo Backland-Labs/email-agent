@@ -54,6 +54,7 @@
     "@ag-ui/core": "^0.0.45",
     "@ag-ui/encoder": "^0.0.45",
     "@ai-sdk/anthropic": "^3.0.44",
+    "@asteasolutions/zod-to-openapi": "^8.3.0",
     "ai": "^6.0.86",
     "googleapis": "^171.4.0",
     "pino": "^10.3.1",
