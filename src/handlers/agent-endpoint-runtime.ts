@@ -257,7 +257,11 @@ export function createAgentEndpointStream({
           );
         }
       } finally {
-        controller.close();
+        try {
+          controller.close();
+        } catch {
+          // Controller may already be closed if the client disconnected
+        }
       }
     }
   });
