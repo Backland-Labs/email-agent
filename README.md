@@ -124,6 +124,14 @@ Run the full local gate:
 bun run check
 ```
 
+Run formal verification for draft-reply abort safety:
+
+```bash
+bun run formal:verify
+```
+
+`formal:verify` runs TLC against a finite-state model and includes a mutation check that must produce a counterexample trace.
+
 ## Opencode Thread Export Utility
 
 Utility for posting Opencode session transcripts to GitHub PR comments:

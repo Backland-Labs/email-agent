@@ -17,6 +17,7 @@
     "test": "vitest run --coverage",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
+    "formal:verify": "node scripts/verify-draft-reply-formal.mjs",
     "lint-staged": "lint-staged",
     "structure:check": "node scripts/check-structure.mjs",
     "opencode:append-thread": "bun run scripts/append-opencode-thread.ts --format json",
