@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  parseEmailId,
-  createEmailMetadata,
-  emailMetadataSchema
-} from "../../src/domain/email-metadata.js";
+import { parseEmailId, createEmailMetadata, emailMetadataSchema } from "../../src/domain/email-metadata.js";
 
 describe("parseEmailId", () => {
   it("parses a valid email ID", () => {

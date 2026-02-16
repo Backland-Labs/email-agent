@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  draftReplyRequestSchema,
-  parseDraftReplyRequest
-} from "../../src/domain/draft-reply-request.js";
+import { draftReplyRequestSchema, parseDraftReplyRequest } from "../../src/domain/draft-reply-request.js";
 
 describe("parseDraftReplyRequest", () => {
   it("parses a minimal valid request", () => {
