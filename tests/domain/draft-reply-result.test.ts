@@ -65,7 +65,7 @@ describe("draftReplyModelOutputSchema", () => {
 describe("draftReplyRunResultSchema", () => {
   it("parses metadata for RUN_FINISHED.result", () => {
     const result = draftReplyRunResultSchema.parse({
-      emailId: "email-1",
+      emailId: "validemailid001",
       gmailDraftId: "draft-1",
       contextMessageCount: 4,
       contextDegraded: false,
@@ -73,7 +73,7 @@ describe("draftReplyRunResultSchema", () => {
     });
 
     expect(result).toEqual({
-      emailId: "email-1",
+      emailId: "validemailid001",
       gmailDraftId: "draft-1",
       contextMessageCount: 4,
       contextDegraded: false,
@@ -84,7 +84,7 @@ describe("draftReplyRunResultSchema", () => {
   it("rejects negative context message count", () => {
     expect(() =>
       draftReplyRunResultSchema.parse({
-        emailId: "email-1",
+        emailId: "validemailid001",
         gmailDraftId: "draft-1",
         contextMessageCount: -1,
         contextDegraded: false,

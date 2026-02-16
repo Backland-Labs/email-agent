@@ -3,10 +3,20 @@ import { describe, expect, it } from "vitest";
 import { createEmailMetadata } from "../../../src/domain/email-metadata.js";
 import { buildInsightPrompt } from "../../../src/services/ai/build-insight-prompt.js";
 
+const emailIds = {
+  base: "17ce8a2b6f3d40a9e",
+  email2: "17ce8a2b6f3d40a9f",
+  email3: "17ce8a2b6f3d40aa0",
+  email4: "17ce8a2b6f3d40aa1",
+  email5: "17ce8a2b6f3d40aa2",
+  email6: "17ce8a2b6f3d40aa3",
+  email7: "17ce8a2b6f3d40aa4"
+} as const;
+
 describe("buildInsightPrompt", () => {
   it("includes subject, from, to, date, and body text", () => {
     const email = createEmailMetadata({
-      id: "email-1",
+      id: emailIds.base,
       threadId: "thread-1",
       subject: "Quarterly planning",
       from: "manager@example.com",
@@ -27,7 +37,7 @@ describe("buildInsightPrompt", () => {
 
   it("does not include email ID or thread ID in user prompt", () => {
     const email = createEmailMetadata({
-      id: "email-1",
+      id: emailIds.base,
       threadId: "thread-1",
       subject: "Test",
       from: "sender@example.com",
@@ -45,7 +55,7 @@ describe("buildInsightPrompt", () => {
 
   it("handles empty body text gracefully", () => {
     const email = createEmailMetadata({
-      id: "email-2",
+      id: emailIds.email2,
       threadId: "thread-2",
       subject: "No body",
       from: "sender@example.com",
@@ -63,7 +73,7 @@ describe("buildInsightPrompt", () => {
   it("truncates body text over 4000 characters", () => {
     const longBody = "x".repeat(4100);
     const email = createEmailMetadata({
-      id: "email-3",
+      id: emailIds.email3,
       threadId: "thread-3",
       subject: "Long body",
       from: "sender@example.com",
@@ -85,7 +95,7 @@ describe("buildInsightPrompt", () => {
 
   it("includes chief of staff role instruction mentioning Max", () => {
     const email = createEmailMetadata({
-      id: "email-4",
+      id: emailIds.email4,
       threadId: "thread-4",
       subject: "Role check",
       from: "sender@example.com",
@@ -103,7 +113,7 @@ describe("buildInsightPrompt", () => {
 
   it("includes category classification instructions", () => {
     const email = createEmailMetadata({
-      id: "email-5",
+      id: emailIds.email5,
       threadId: "thread-5",
       subject: "Category check",
       from: "sender@example.com",
@@ -123,7 +133,7 @@ describe("buildInsightPrompt", () => {
 
   it("includes urgency classification instructions", () => {
     const email = createEmailMetadata({
-      id: "email-6",
+      id: emailIds.email6,
       threadId: "thread-6",
       subject: "Urgency check",
       from: "sender@example.com",
@@ -142,7 +152,7 @@ describe("buildInsightPrompt", () => {
 
   it("includes action field instructions", () => {
     const email = createEmailMetadata({
-      id: "email-7",
+      id: emailIds.email7,
       threadId: "thread-7",
       subject: "Action check",
       from: "sender@example.com",

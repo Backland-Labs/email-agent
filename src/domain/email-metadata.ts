@@ -30,10 +30,44 @@ export const emailMetadataSchema = z.object({
 });
 
 export function parseEmailId(value: string): EmailId {
-  if (value.trim().length === 0) {
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) {
     throw new Error("EmailId cannot be empty");
   }
-  return value as EmailId;
+
+  // Reject obviously invalid placeholder-like patterns
+  // Gmail message IDs are typically hexadecimal strings of significant length
+  // This catches common test/placeholder patterns without being overly strict
+  const invalidPatterns = [
+    /^test[-_]?email$/i, // test-email, test_email, testemail
+    /^email[-_]?\d+$/i, // email-123, email_456
+    /^(msg|message)[-_]?\d+$/i, // msg-1, message_123
+    /^(id|msgid)[-_]?\d+$/i, // id-1, msgid_123
+    /^placeholder/i, // placeholder, placeholder-id
+    /^example/i, // example, example-id
+    /^dummy/i, // dummy, dummy-id
+    /^fake/i // fake, fake-id
+  ];
+
+  const isObviouslyInvalid = invalidPatterns.some((pattern) => pattern.test(trimmed));
+
+  if (isObviouslyInvalid) {
+    throw new Error(
+      `Invalid emailId format: "${trimmed}" appears to be a placeholder or test value. ` +
+        "Gmail message IDs should be alphanumeric strings from the Gmail API."
+    );
+  }
+
+  // Require minimum length to catch other obviously invalid short IDs
+  if (trimmed.length < 8) {
+    throw new Error(
+      `Invalid emailId format: "${trimmed}" is too short. ` +
+        "Gmail message IDs are typically 16+ characters."
+    );
+  }
+
+  return trimmed as EmailId;
 }
 
 export function createEmailMetadata(input: {

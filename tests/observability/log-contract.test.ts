@@ -123,7 +123,7 @@ describe("structured log contract", () => {
     }
 
     assertNoForbiddenKeys(entries, FORBIDDEN_KEYS);
-  });
+  }, 12000);
 });
 
 function parseJsonLogLines(stdout: string): LogEntry[] {

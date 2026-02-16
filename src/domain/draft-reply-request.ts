@@ -14,7 +14,11 @@ export type DraftReplyRequest = {
 
 export const draftReplyRequestSchema = z
   .object({
-    emailId: nonEmptyTrimmedString,
+    emailId: nonEmptyTrimmedString.openapi({
+      description:
+        "Gmail message ID (alphanumeric string from Gmail API, typically 16+ characters)",
+      example: "18d3c5e8f9a2b1c4"
+    }),
     runId: nonEmptyTrimmedString.optional(),
     threadId: nonEmptyTrimmedString.optional(),
     voiceInstructions: nonEmptyTrimmedString.optional()

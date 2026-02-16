@@ -17,6 +17,10 @@ type DraftReplyGmailContextClient = ReturnType<
   DraftReplyEndpointDependencies["createGmailReplyContextApi"]
 >;
 
+const messageIds = {
+  validEmail: "17ce8a2b6f3d40a9e"
+} as const;
+
 const DEFAULT_INSIGHT: EmailInsight = {
   summary: "A routine quarterly update.",
   category: "business",
@@ -34,13 +38,13 @@ async function runAgentSuccessScenario(): Promise<void> {
     list: () =>
       Promise.resolve({
         data: {
-          messages: [{ id: "email-1" }]
+          messages: [{ id: messageIds.validEmail }]
         }
       }),
     get: () =>
       Promise.resolve({
         data: {
-          id: "email-1",
+          id: messageIds.validEmail,
           threadId: "thread-email-1",
           snippet: "Short snippet",
           payload: {

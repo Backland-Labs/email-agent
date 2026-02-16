@@ -7,6 +7,15 @@ import {
   type ExtractEmailInsightDependencies
 } from "../../../src/services/ai/extract-email-insight.js";
 
+const emailIds = {
+  base: "17ce8a2b6f3d40a9e",
+  loader: "17ce8a2b6f3d40a9f",
+  validation: "17ce8a2b6f3d40aa0",
+  provider: "17ce8a2b6f3d40aa1",
+  schema: "17ce8a2b6f3d40aa2",
+  unknown: "17ce8a2b6f3d40aa4"
+} as const;
+
 let streamTextMock: ReturnType<typeof vi.fn>;
 let outputObjectMock: ReturnType<typeof vi.fn>;
 let createModelMock: ReturnType<typeof vi.fn>;
@@ -30,7 +39,7 @@ describe("extractEmailInsight", () => {
 
   it("returns a validated EmailInsight on success", async () => {
     const email = createEmailMetadata({
-      id: "email-1",
+      id: emailIds.base,
       threadId: "thread-1",
       subject: "Planning",
       from: "manager@example.com",
@@ -69,7 +78,7 @@ describe("extractEmailInsight", () => {
 
   it("loads dependencies when explicit dependencies are omitted", async () => {
     const email = createEmailMetadata({
-      id: "email-loader",
+      id: emailIds.loader,
       threadId: "thread-loader",
       subject: "Loader path",
       from: "sender@example.com",
@@ -102,7 +111,7 @@ describe("extractEmailInsight", () => {
 
   it("wraps schema validation failures with email context", async () => {
     const email = createEmailMetadata({
-      id: "email-2",
+      id: emailIds.validation,
       threadId: "thread-2",
       subject: "Schema failure",
       from: "sender@example.com",
@@ -123,12 +132,12 @@ describe("extractEmailInsight", () => {
 
     await expect(
       extractEmailInsight("anthropic:claude-sonnet-4-20250514", email, dependencies)
-    ).rejects.toThrow("Failed to extract insight for email (email-2)");
+    ).rejects.toThrow(`Failed to extract insight for email (${emailIds.validation})`);
   });
 
   it("wraps LLM errors with email context", async () => {
     const email = createEmailMetadata({
-      id: "email-3",
+      id: emailIds.provider,
       threadId: "thread-3",
       subject: "Provider failure",
       from: "sender@example.com",
@@ -144,12 +153,14 @@ describe("extractEmailInsight", () => {
 
     await expect(
       extractEmailInsight("anthropic:claude-sonnet-4-20250514", email, dependencies)
-    ).rejects.toThrow("Failed to extract insight for email (email-3): Provider unavailable");
+    ).rejects.toThrow(
+      `Failed to extract insight for email (${emailIds.provider}): Provider unavailable`
+    );
   });
 
   it("calls Output.object with the EmailInsight schema", async () => {
     const email = createEmailMetadata({
-      id: "email-4",
+      id: emailIds.schema,
       threadId: "thread-4",
       subject: "Output schema",
       from: "sender@example.com",
@@ -175,7 +186,7 @@ describe("extractEmailInsight", () => {
 
   it("wraps non-Error failures with unknown error message", async () => {
     const email = createEmailMetadata({
-      id: "email-6",
+      id: emailIds.unknown,
       threadId: "thread-6",
       subject: "Unknown failure",
       from: "sender@example.com",
@@ -195,6 +206,6 @@ describe("extractEmailInsight", () => {
 
     await expect(
       extractEmailInsight("anthropic:claude-sonnet-4-20250514", email, dependencies)
-    ).rejects.toThrow("Failed to extract insight for email (email-6): Unknown error");
+    ).rejects.toThrow(`Failed to extract insight for email (${emailIds.unknown}): Unknown error`);
   });
 });
