@@ -93,13 +93,31 @@ export async function handleAgentEndpoint(
       let lastInsightFailure: unknown;
       let aborted = false;
 
+      // Safe write helper that checks if the stream is still active before writing
+      const safeEnqueue = (data: Uint8Array): boolean => {
+        if (aborted || request.signal.aborted) {
+          return false;
+        }
+        try {
+          controller.enqueue(data);
+          return true;
+        } catch (error) {
+          // If we get ERR_INVALID_STATE, it means the client disconnected
+          if (error instanceof Error && error.message.includes("Controller is already closed")) {
+            aborted = true;
+            return false;
+          }
+          throw error;
+        }
+      };
+
       runLogger.info({ event: "agent.run_started" }, "Started agent run");
 
       try {
-        controller.enqueue(
+        safeEnqueue(
           encodeRunStarted({ threadId: runContext.threadId, runId: runContext.runId })
         );
-        controller.enqueue(encodeTextMessageStart({ messageId }));
+        safeEnqueue(encodeTextMessageStart({ messageId }));
 
         const authClient = dependencies.createAuthClient();
         const gmailClient = dependencies.createGmailMessagesApi(authClient);
@@ -111,7 +129,7 @@ export async function handleAgentEndpoint(
         unreadCount = unreadEmails.length;
 
         if (unreadEmails.length === 0) {
-          controller.enqueue(
+          safeEnqueue(
             encodeTextMessageContent({
               messageId,
               delta: "No unread emails found in your inbox.\n\n"
@@ -140,8 +158,8 @@ export async function handleAgentEndpoint(
 
         results.sort((a, b) => compareByCategory(a.insight, b.insight));
 
-        if (results.length > 0) {
-          controller.enqueue(
+        if (results.length > 0 && !aborted) {
+          safeEnqueue(
             encodeTextMessageContent({
               messageId,
               delta: formatDigestIntro(results.map((r) => r.insight))
@@ -153,15 +171,17 @@ export async function handleAgentEndpoint(
         let emittedReadingListHeader = false;
 
         for (const { email, insight } of results) {
+          if (aborted) break;
+
           if (insight.urgency !== currentUrgency) {
             currentUrgency = insight.urgency;
             emittedReadingListHeader = false;
-            controller.enqueue(
+            if (!safeEnqueue(
               encodeTextMessageContent({
                 messageId,
                 delta: formatSectionHeader(currentUrgency)
               })
-            );
+            )) break;
           }
 
           if (
@@ -170,24 +190,24 @@ export async function handleAgentEndpoint(
             !emittedReadingListHeader
           ) {
             emittedReadingListHeader = true;
-            controller.enqueue(
+            if (!safeEnqueue(
               encodeTextMessageContent({
                 messageId,
                 delta: "### Reading List\n\n"
               })
-            );
+            )) break;
           }
 
-          controller.enqueue(
+          if (!safeEnqueue(
             encodeTextMessageContent({
               messageId,
               delta: formatInsightMarkdown(email, insight)
             })
-          );
+          )) break;
         }
 
-        if (currentUrgency === "noise") {
-          controller.enqueue(
+        if (currentUrgency === "noise" && !aborted) {
+          safeEnqueue(
             encodeTextMessageContent({
               messageId,
               delta: "\n"
@@ -207,22 +227,36 @@ export async function handleAgentEndpoint(
           );
         }
 
-        controller.enqueue(encodeTextMessageEnd({ messageId }));
-        controller.enqueue(
-          encodeRunFinished({ threadId: runContext.threadId, runId: runContext.runId })
-        );
+        if (!aborted) {
+          safeEnqueue(encodeTextMessageEnd({ messageId }));
+          safeEnqueue(
+            encodeRunFinished({ threadId: runContext.threadId, runId: runContext.runId })
+          );
+        }
 
-        runLogger.info(
-          {
-            event: "agent.run_completed",
-            durationMs: Date.now() - runStartedAt,
-            unreadCount,
-            generatedInsightCount,
-            failedInsightCount,
-            aborted
-          },
-          "Completed agent run"
-        );
+        if (aborted) {
+          runLogger.info(
+            {
+              event: "agent.run_aborted",
+              durationMs: Date.now() - runStartedAt,
+              unreadCount,
+              generatedInsightCount,
+              failedInsightCount
+            },
+            "Agent run aborted by client disconnect"
+          );
+        } else {
+          runLogger.info(
+            {
+              event: "agent.run_completed",
+              durationMs: Date.now() - runStartedAt,
+              unreadCount,
+              generatedInsightCount,
+              failedInsightCount
+            },
+            "Completed agent run"
+          );
+        }
       } catch (error) {
         runLogger.error(
           {
@@ -237,11 +271,13 @@ export async function handleAgentEndpoint(
           "Failed agent run"
         );
 
-        controller.enqueue(
-          encodeRunError({
-            message: toErrorMessage(error)
-          })
-        );
+        if (!aborted) {
+          safeEnqueue(
+            encodeRunError({
+              message: toErrorMessage(error)
+            })
+          );
+        }
       } finally {
         controller.close();
       }
