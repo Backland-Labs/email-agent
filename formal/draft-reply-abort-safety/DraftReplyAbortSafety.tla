@@ -132,11 +132,17 @@ ExtractDraftFailure ==
        >>
 
 AbortBeforeSave ==
-  /\ phase \in {"RunStarted", "RequestValidated", "ContextFetched", "DraftExtracted"}
-  /\ ~aborted
-  /\ saveAttempts = 0
-  /\ aborted' = TRUE
-  /\ abortBeforeSave' = TRUE
+   /\ phase \in {"RunStarted", "RequestValidated", "ContextFetched", "DraftExtracted"}
+   /\ ~aborted
+   /\ saveAttempts = 0
+   \* Modeling note: this action sets `aborted = TRUE` without forcing terminal transition.
+   \* Runtime checks in `src/handlers/draft-reply-endpoint.ts` (`assertDraftReplyNotAborted`)
+   \* short-circuit execution after abort, so this intentionally over-approximates behavior.
+   \* This preserves safety-soundness (invariants that hold here also hold at runtime),
+   \* but liveness properties such as "abort always reaches TerminalAborted" are not guaranteed
+   \* by this model.
+   /\ aborted' = TRUE
+   /\ abortBeforeSave' = TRUE
   /\ UNCHANGED
        <<
          phase,

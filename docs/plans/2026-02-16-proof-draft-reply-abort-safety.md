@@ -25,4 +25,4 @@ issue: "https://github.com/Backland-Labs/email-agent/issues/7"
 
 - Formal model directory: `formal/draft-reply-abort-safety/`
 - Verification command: `bun run formal:verify`
-- CI status check: `formal-verification` job in `.github/workflows/ci.yml`
+- CI status check: `formal-verification` job in `.github/workflows/formal-verification.yml`
