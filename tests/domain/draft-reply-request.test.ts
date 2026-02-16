@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { draftReplyRequestSchema, parseDraftReplyRequest } from "../../src/domain/draft-reply-request.js";
+import {
+  draftReplyRequestSchema,
+  parseDraftReplyRequest
+} from "../../src/domain/draft-reply-request.js";
 
 describe("parseDraftReplyRequest", () => {
   it("parses a minimal valid request", () => {
@@ -45,9 +48,7 @@ describe("parseDraftReplyRequest", () => {
   });
 
   it("throws when emailId is too short", () => {
-    expect(() => parseDraftReplyRequest({ emailId: "short" })).toThrow(
-      "Invalid emailId format"
-    );
+    expect(() => parseDraftReplyRequest({ emailId: "short" })).toThrow("Invalid emailId format");
   });
 
   it("throws when unknown keys are present", () => {

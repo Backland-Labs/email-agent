@@ -32,32 +32,40 @@ function createMessage(id: string, threadId: string, date = "Sat, 14 Feb 2026 10
   };
 }
 
+const messageIds = {
+  target: "17ce8a2b6f3d40a9e",
+  duplicate: "17ce8a2b6f3d40a9f",
+  contextOne: "17ce8a2b6f3d40aa0",
+  contextTwo: "17ce8a2b6f3d40aa1",
+  contextThree: "17ce8a2b6f3d40aa2"
+} as const;
+
 describe("fetchReplyContext edge cases", () => {
   it("deduplicates repeated thread messages by message ID", async () => {
     const gmailClient: GmailReplyContextApi = {
       getMessage: () =>
         Promise.resolve({
-          data: createMessage("target-email", "thread-1")
+          data: createMessage(messageIds.target, "thread-1")
         }),
       getThread: () =>
         Promise.resolve({
           data: {
             messages: [
-              createMessage("dup-id", "thread-1"),
-              createMessage("dup-id", "thread-1"),
-              createMessage("target-email", "thread-1")
+              createMessage(messageIds.duplicate, "thread-1"),
+              createMessage(messageIds.duplicate, "thread-1"),
+              createMessage(messageIds.target, "thread-1")
             ]
           }
         })
     };
 
     const context = await fetchReplyContext(gmailClient, {
-      emailId: "target-email"
+      emailId: messageIds.target
     });
 
     expect(context.contextMessages.map((message) => message.id)).toEqual([
-      "dup-id",
-      "target-email"
+      messageIds.duplicate,
+      messageIds.target
     ]);
   });
 
@@ -65,51 +73,51 @@ describe("fetchReplyContext edge cases", () => {
     const gmailClient: GmailReplyContextApi = {
       getMessage: () =>
         Promise.resolve({
-          data: createMessage("target-email", "thread-1")
+          data: createMessage(messageIds.target, "thread-1")
         }),
       getThread: () =>
         Promise.resolve({
           data: {
-            messages: [null, {}, createMessage("target-email", "thread-1")] as unknown as []
+            messages: [null, {}, createMessage(messageIds.target, "thread-1")] as unknown as []
           }
         })
     };
 
     const context = await fetchReplyContext(gmailClient, {
-      emailId: "target-email"
+      emailId: messageIds.target
     });
 
-    expect(context.contextMessages.map((message) => message.id)).toEqual(["target-email"]);
+    expect(context.contextMessages.map((message) => message.id)).toEqual([messageIds.target]);
   });
 
   it("returns only target when maxContextMessages is one", async () => {
     const gmailClient: GmailReplyContextApi = {
       getMessage: () =>
         Promise.resolve({
-          data: createMessage("target-email", "thread-1")
+          data: createMessage(messageIds.target, "thread-1")
         }),
       getThread: () =>
         Promise.resolve({
           data: {
             messages: [
-              createMessage("thread-1", "thread-1"),
-              createMessage("thread-2", "thread-1"),
-              createMessage("thread-3", "thread-1")
+              createMessage(messageIds.contextOne, "thread-1"),
+              createMessage(messageIds.contextTwo, "thread-1"),
+              createMessage(messageIds.contextThree, "thread-1")
             ]
           }
         })
     };
 
     const context = await fetchReplyContext(gmailClient, {
-      emailId: "target-email",
+      emailId: messageIds.target,
       maxContextMessages: 1
     });
 
-    expect(context.contextMessages.map((message) => message.id)).toEqual(["target-email"]);
+    expect(context.contextMessages.map((message) => message.id)).toEqual([messageIds.target]);
   });
 
   it("uses Message-ID as references when References header is missing", async () => {
-    const targetMessage = createMessage("target-email", "thread-1");
+    const targetMessage = createMessage(messageIds.target, "thread-1");
     targetMessage.payload.headers.push({ name: "Message-ID", value: "<target@example.com>" });
 
     const gmailClient: GmailReplyContextApi = {
@@ -118,7 +126,7 @@ describe("fetchReplyContext edge cases", () => {
     };
 
     const context = await fetchReplyContext(gmailClient, {
-      emailId: "target-email"
+      emailId: messageIds.target
     });
 
     expect(context.replyHeaders.inReplyTo).toBe("<target@example.com>");
@@ -126,7 +134,7 @@ describe("fetchReplyContext edge cases", () => {
   });
 
   it("keeps existing References header when it already contains Message-ID", async () => {
-    const targetMessage = createMessage("target-email", "thread-1");
+    const targetMessage = createMessage(messageIds.target, "thread-1");
     targetMessage.payload.headers.push({ name: "Message-ID", value: "<target@example.com>" });
     targetMessage.payload.headers.push({
       name: "References",
@@ -139,7 +147,7 @@ describe("fetchReplyContext edge cases", () => {
     };
 
     const context = await fetchReplyContext(gmailClient, {
-      emailId: "target-email"
+      emailId: messageIds.target
     });
 
     expect(context.replyHeaders.inReplyTo).toBe("<target@example.com>");
@@ -151,7 +159,7 @@ describe("fetchReplyContext edge cases", () => {
       getMessage: () =>
         Promise.resolve({
           data: {
-            id: "target-email",
+            id: messageIds.target,
             threadId: "thread-1",
             snippet: "No payload"
           }
@@ -160,17 +168,17 @@ describe("fetchReplyContext edge cases", () => {
     };
 
     const context = await fetchReplyContext(gmailClient, {
-      emailId: "target-email"
+      emailId: messageIds.target
     });
 
     expect(context.replyHeaders).toEqual({});
   });
 
   it("keeps context ordering stable when dates are unparsable", async () => {
-    const targetMessage = createMessage("target-email", "thread-1", "not-a-date");
-    const contextMessageOne = createMessage("context-email-1", "thread-1", "still-not-a-date");
+    const targetMessage = createMessage(messageIds.target, "thread-1", "not-a-date");
+    const contextMessageOne = createMessage(messageIds.contextOne, "thread-1", "still-not-a-date");
     const contextMessageTwo = createMessage(
-      "context-email-2",
+      messageIds.contextTwo,
       "thread-1",
       "another-unparsable-date"
     );
@@ -184,13 +192,13 @@ describe("fetchReplyContext edge cases", () => {
     };
 
     const context = await fetchReplyContext(gmailClient, {
-      emailId: "target-email",
+      emailId: messageIds.target,
       maxContextMessages: 2
     });
 
     expect(context.contextMessages.map((message) => message.id)).toEqual([
-      "target-email",
-      "context-email-2"
+      messageIds.target,
+      messageIds.contextTwo
     ]);
   });
 });

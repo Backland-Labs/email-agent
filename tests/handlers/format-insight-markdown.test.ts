@@ -9,9 +9,11 @@ import {
   formatInsightMarkdown
 } from "../../src/handlers/format-insight-markdown.js";
 
+const TEST_EMAIL_ID = "17ce8a2b6f3d40a9e";
+
 function createEmail(overrides: Partial<{ from: string; subject: string }> = {}) {
   return createEmailMetadata({
-    id: "email-1",
+    id: TEST_EMAIL_ID,
     threadId: "thread-1",
     subject: overrides.subject ?? "Test Subject",
     from: overrides.from ?? "sender@example.com",

@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { parseEmailId, createEmailMetadata, emailMetadataSchema } from "../../src/domain/email-metadata.js";
+import {
+  parseEmailId,
+  createEmailMetadata,
+  emailMetadataSchema
+} from "../../src/domain/email-metadata.js";
 
 describe("parseEmailId", () => {
   it("parses a valid email ID", () => {
@@ -47,15 +51,11 @@ describe("parseEmailId", () => {
   });
 
   it("throws for too-short IDs", () => {
-    expect(() => parseEmailId("abc123")).toThrow(
-      'Invalid emailId format: "abc123" is too short'
-    );
+    expect(() => parseEmailId("abc123")).toThrow('Invalid emailId format: "abc123" is too short');
   });
 
   it("throws for single character ID", () => {
-    expect(() => parseEmailId("a")).toThrow(
-      'Invalid emailId format: "a" is too short'
-    );
+    expect(() => parseEmailId("a")).toThrow('Invalid emailId format: "a" is too short');
   });
 });
 

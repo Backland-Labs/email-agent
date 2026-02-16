@@ -13,6 +13,16 @@ function toBase64Url(value: string): string {
     .replace(/=+$/u, "");
 }
 
+const messageIds = {
+  one: "17ce8a2b6f3d40a9e",
+  two: "17ce8a2b6f3d40a9f",
+  three: "17ce8a2b6f3d40aa0",
+  four: "17ce8a2b6f3d40aa1",
+  five: "17ce8a2b6f3d40aa2",
+  valid: "validid01",
+  unused: "unusedmessageid"
+} as const;
+
 function createMessage(id: string) {
   return {
     id,
@@ -47,7 +57,7 @@ describe("fetchUnreadEmails", () => {
         listCalls.push(params);
         return Promise.resolve({
           data: {
-            messages: [{ id: "1" }, { id: "2" }]
+            messages: [{ id: messageIds.one }, { id: messageIds.two }]
           }
         });
       },
@@ -60,8 +70,8 @@ describe("fetchUnreadEmails", () => {
     const result = await fetchUnreadEmails(gmailClient);
 
     expect(result).toHaveLength(2);
-    expect(result[0]?.id).toBe("1");
-    expect(result[1]?.id).toBe("2");
+    expect(result[0]?.id).toBe(messageIds.one);
+    expect(result[1]?.id).toBe(messageIds.two);
     expect(listCalls).toHaveLength(1);
     expect(getCalls).toHaveLength(2);
   });
@@ -78,7 +88,7 @@ describe("fetchUnreadEmails", () => {
         }),
       get: () => {
         getCallCount += 1;
-        return Promise.resolve({ data: createMessage("unused") });
+        return Promise.resolve({ data: createMessage(messageIds.unused) });
       }
     };
 
@@ -96,7 +106,13 @@ describe("fetchUnreadEmails", () => {
       list: () =>
         Promise.resolve({
           data: {
-            messages: [{ id: "1" }, { id: "2" }, { id: "3" }, { id: "4" }, { id: "5" }]
+            messages: [
+              { id: messageIds.one },
+              { id: messageIds.two },
+              { id: messageIds.three },
+              { id: messageIds.four },
+              { id: messageIds.five }
+            ]
           }
         }),
       get: async (params) => {
@@ -137,7 +153,7 @@ describe("fetchUnreadEmails", () => {
           }
         });
       },
-      get: () => Promise.resolve({ data: createMessage("unused") })
+      get: () => Promise.resolve({ data: createMessage(messageIds.unused) })
     };
 
     await fetchUnreadEmails(gmailClient);
@@ -155,7 +171,7 @@ describe("fetchUnreadEmails", () => {
       list: () =>
         Promise.resolve({
           data: {
-            messages: [{ id: null }, {}, { id: "valid-id" }]
+            messages: [{ id: null }, {}, { id: messageIds.valid }]
           }
         }),
       get: (params) => Promise.resolve({ data: createMessage(params.id) })
@@ -164,13 +180,13 @@ describe("fetchUnreadEmails", () => {
     const result = await fetchUnreadEmails(gmailClient);
 
     expect(result).toHaveLength(1);
-    expect(result[0]?.id).toBe("valid-id");
+    expect(result[0]?.id).toBe(messageIds.valid);
   });
 
   it("returns empty array when list response has undefined messages", async () => {
     const gmailClient: GmailMessagesApi = {
       list: () => Promise.resolve({ data: {} }),
-      get: () => Promise.resolve({ data: createMessage("unused") })
+      get: () => Promise.resolve({ data: createMessage(messageIds.unused) })
     };
 
     const result = await fetchUnreadEmails(gmailClient);
@@ -181,7 +197,7 @@ describe("fetchUnreadEmails", () => {
   it("rethrows list failures", async () => {
     const gmailClient: GmailMessagesApi = {
       list: () => Promise.reject(new Error("List failed")),
-      get: () => Promise.resolve({ data: createMessage("unused") })
+      get: () => Promise.resolve({ data: createMessage(messageIds.unused) })
     };
 
     await expect(fetchUnreadEmails(gmailClient)).rejects.toThrow("List failed");
@@ -192,7 +208,7 @@ describe("fetchUnreadEmails", () => {
       list: () =>
         Promise.resolve({
           data: {
-            messages: [{ id: "1" }]
+            messages: [{ id: messageIds.one }]
           }
         }),
       get: () => Promise.reject(new Error("Get failed"))

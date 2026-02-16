@@ -1,72 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createEmailMetadata } from "../../src/domain/email-metadata.js";
-import type { EmailInsight, EmailCategory, EmailUrgency } from "../../src/domain/email-insight.js";
+import { handleAgentEndpoint } from "../../src/handlers/agent-endpoint.js";
 import {
-  handleAgentEndpoint,
-  type AgentEndpointDependencies
-} from "../../src/handlers/agent-endpoint.js";
-
-function createDependencies(): AgentEndpointDependencies {
-  return {
-    createAuthClient: vi.fn(() => ({ token: "token" })),
-    createGmailMessagesApi: vi.fn(() => ({
-      list: vi.fn(() => Promise.resolve({ data: { messages: [] } })),
-      get: vi.fn(() => Promise.resolve({ data: {} }))
-    })),
-    fetchUnreadEmails: vi.fn(() => Promise.resolve([])),
-    extractEmailInsight: vi.fn(() =>
-      Promise.resolve({
-        summary: "A routine message.",
-        category: "business" as const,
-        urgency: "fyi" as const,
-        action: null
-      })
-    ),
-    model: "anthropic:claude-sonnet-4-20250514",
-    createMessageId: () => "message-1"
-  };
-}
-
-function createRequest(init?: RequestInit): Request {
-  return new Request("http://localhost:3001/agent", { method: "POST", ...init });
-}
-
-function createTestEmail(
-  id: string,
-  overrides: Partial<{ subject: string; from: string; bodyText: string }> = {}
-) {
-  return createEmailMetadata({
-    id,
-    threadId: `thread-${id}`,
-    subject: overrides.subject ?? "Test",
-    from: overrides.from ?? "sender@example.com",
-    to: "you@example.com",
-    date: "Sat, 14 Feb 2026 12:00:00 +0000",
-    snippet: "Snippet",
-    bodyText: overrides.bodyText ?? "Body"
-  });
-}
-
-function createInsight(
-  category: EmailCategory,
-  urgency: EmailUrgency = "fyi",
-  action: string | null = null
-): EmailInsight {
-  return {
-    summary: `A ${category} message.`,
-    category,
-    urgency,
-    action
-  };
-}
+  createDependencies,
+  createInsight,
+  createRequest,
+  createTestEmail,
+  getTestEmailId
+} from "./agent-endpoint-test-helpers.js";
 
 describe("handleAgentEndpoint", () => {
   it("streams full SSE lifecycle for successful run", async () => {
     const dependencies = createDependencies();
 
     const email = createEmailMetadata({
-      id: "email-1",
+      id: getTestEmailId("email-1"),
       threadId: "thread-email-1",
       subject: "Budget review",
       from: "manager@example.com",
@@ -183,7 +132,7 @@ describe("handleAgentEndpoint", () => {
     const dependencies = createDependencies();
 
     const firstEmail = createEmailMetadata({
-      id: "email-1",
+      id: getTestEmailId("email-1"),
       threadId: "thread-email-1",
       subject: "First email",
       from: "manager@example.com",
@@ -194,7 +143,7 @@ describe("handleAgentEndpoint", () => {
     });
 
     const secondEmail = createEmailMetadata({
-      id: "email-2",
+      id: getTestEmailId("email-2"),
       threadId: "thread-email-2",
       subject: "Second email",
       from: "peer@example.com",
@@ -224,7 +173,7 @@ describe("handleAgentEndpoint", () => {
     const dependencies = createDependencies();
 
     const email = createEmailMetadata({
-      id: "email-3",
+      id: getTestEmailId("email-3"),
       threadId: "thread-email-3",
       subject: "Action items email",
       from: "lead@example.com",
@@ -317,7 +266,7 @@ describe("handleAgentEndpoint", () => {
     const abortController = new AbortController();
 
     const email = createEmailMetadata({
-      id: "email-4",
+      id: getTestEmailId("email-4"),
       threadId: "thread-email-4",
       subject: "Aborted",
       from: "lead@example.com",
