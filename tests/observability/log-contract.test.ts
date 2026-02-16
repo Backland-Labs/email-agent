@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 type LogEntry = Record<string, unknown>;
 
 const REQUIRED_AGENT_RUN_FIELDS = ["event", "requestId", "runId", "threadId"];
+const REQUIRED_DRAFT_REPLY_RUN_FIELDS = ["event", "requestId", "runId", "threadId"];
 const REQUIRED_GMAIL_BOUNDARY_FIELDS = ["event", "requestId", "runId", "threadId"];
 const FORBIDDEN_KEYS = [
   "subject",
@@ -61,6 +62,26 @@ describe("structured log contract", () => {
       "code",
       "err"
     ]);
+    assertEntriesHaveFields(entries, "draft_reply.run_started", REQUIRED_DRAFT_REPLY_RUN_FIELDS);
+    assertEntriesHaveFields(entries, "draft_reply.run_completed", [
+      ...REQUIRED_DRAFT_REPLY_RUN_FIELDS,
+      "durationMs",
+      "contextMessageCount",
+      "contextDegraded",
+      "gmailDraftId",
+      "riskFlags"
+    ]);
+    assertEntriesHaveFields(entries, "draft_reply.run_failed", [
+      ...REQUIRED_DRAFT_REPLY_RUN_FIELDS,
+      "durationMs",
+      "code",
+      "err"
+    ]);
+    assertEntriesHaveFields(entries, "draft_reply.context_degraded", [
+      ...REQUIRED_DRAFT_REPLY_RUN_FIELDS,
+      "code",
+      "contextMessageCount"
+    ]);
     assertEntriesHaveFields(entries, "gmail.fetch_started", [
       ...REQUIRED_GMAIL_BOUNDARY_FIELDS,
       "maxResults",
@@ -82,11 +103,16 @@ describe("structured log contract", () => {
 
     const runFailedEntry = getFirstEntry(entries, "agent.run_failed");
     const gmailFailedEntry = getFirstEntry(entries, "gmail.fetch_failed");
+    const draftRunFailedEntry = getFirstEntry(entries, "draft_reply.run_failed");
+    const draftContextDegradedEntry = getFirstEntry(entries, "draft_reply.context_degraded");
 
     expect(runFailedEntry.code).toBe("run_failed");
     expect(gmailFailedEntry.code).toBe("gmail_fetch_failed");
+    expect(draftRunFailedEntry.code).toBe("invalid_request");
+    expect(draftContextDegradedEntry.code).toBe("context_degraded");
     expect(hasKey(runFailedEntry, "stack")).toBe(true);
     expect(hasKey(gmailFailedEntry, "stack")).toBe(true);
+    expect(hasKey(draftRunFailedEntry, "stack")).toBe(true);
 
     const runIds = collectRunIds(entries);
 
@@ -132,7 +158,9 @@ function getFirstEntry(entries: LogEntry[], eventName: string): LogEntry {
 
 function collectRunIds(entries: LogEntry[]): string[] {
   const runIds = entries
-    .filter((entry) => entry.event === "agent.run_started")
+    .filter(
+      (entry) => entry.event === "agent.run_started" || entry.event === "draft_reply.run_started"
+    )
     .map((entry) => entry.runId)
     .filter((runId): runId is string => typeof runId === "string" && runId.length > 0);
 

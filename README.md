@@ -7,6 +7,7 @@ A Bun + TypeScript agent that reads unread Gmail messages and streams structured
 - Connects to Gmail with OAuth2 (single-user env-based credentials)
 - Fetches up to 20 unread emails from INBOX
 - Extracts structured insight per email (priority, sentiment, action items, relationship, urgency)
+- Drafts a reply for a specific Gmail message with thread-aware context
 - Streams markdown insights as AG-UI events for `agent-ui`
 
 ## Current Status
@@ -16,6 +17,7 @@ v1 is implemented and passing the full quality gate:
 - Unread inbox fetch + parsing
 - Insight extraction with the Vercel AI SDK and schema validation
 - AG-UI SSE lifecycle (`RUN_STARTED` to `RUN_FINISHED`)
+- Draft reply generation via `POST /draft-reply` with schema-validated output
 - Health endpoint and request validation
 - 100% test coverage and lint/type checks
 
@@ -81,6 +83,18 @@ Default port is `3001` (override with `PORT`).
 
 - `GET /health` -> `{ "status": "ok" }`
 - `POST /agent` -> AG-UI SSE stream (`RUN_STARTED`, text events, `RUN_FINISHED`); no request body required
+- `POST /draft-reply` -> AG-UI SSE stream that drafts a reply for one email; requires JSON body:
+
+```json
+{
+  "emailId": "gmail-message-id",
+  "runId": "optional-run-id",
+  "threadId": "optional-thread-id",
+  "voiceInstructions": "optional tone constraints"
+}
+```
+
+`/draft-reply` persists the generated reply as a Gmail draft in the same thread and returns `gmailDraftId` in `RUN_FINISHED.result`. It does not send email.
 
 ## Next Improvements
 

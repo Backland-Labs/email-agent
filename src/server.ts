@@ -1,4 +1,5 @@
 import { handleAgentEndpoint } from "./handlers/agent-endpoint.js";
+import { handleDraftReplyEndpoint } from "./handlers/draft-reply-endpoint.js";
 import { handleHealthEndpoint } from "./handlers/health-endpoint.js";
 
 const DEFAULT_PORT = 3001;
@@ -6,11 +7,13 @@ const DEFAULT_IDLE_TIMEOUT_SECONDS = 120;
 
 export type ServerRouteHandlers = {
   handleAgentEndpoint: (request: Request) => Promise<Response>;
+  handleDraftReplyEndpoint: (request: Request) => Promise<Response>;
   handleHealthEndpoint: () => Response;
 };
 
 const defaultHandlers: ServerRouteHandlers = {
   handleAgentEndpoint,
+  handleDraftReplyEndpoint,
   handleHealthEndpoint
 };
 
@@ -24,6 +27,14 @@ export function createServerFetchHandler(handlers: ServerRouteHandlers) {
       }
 
       return handlers.handleAgentEndpoint(request);
+    }
+
+    if (requestUrl.pathname === "/draft-reply") {
+      if (request.method !== "POST") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+
+      return handlers.handleDraftReplyEndpoint(request);
     }
 
     if (requestUrl.pathname === "/health") {

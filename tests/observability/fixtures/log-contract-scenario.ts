@@ -1,12 +1,21 @@
+import type { Auth } from "googleapis";
 import type { EmailInsight } from "../../../src/domain/email-insight.js";
+import { createEmailMetadata } from "../../../src/domain/email-metadata.js";
 import {
   handleAgentEndpoint,
   type AgentEndpointDependencies
 } from "../../../src/handlers/agent-endpoint.js";
 import {
+  handleDraftReplyEndpoint,
+  type DraftReplyEndpointDependencies
+} from "../../../src/handlers/draft-reply-endpoint.js";
+import {
   fetchUnreadEmails,
   type GmailMessagesApi
 } from "../../../src/services/gmail/fetch-unread-emails.js";
+type DraftReplyGmailContextClient = ReturnType<
+  DraftReplyEndpointDependencies["createGmailReplyContextApi"]
+>;
 
 const DEFAULT_INSIGHT: EmailInsight = {
   summary: "A routine quarterly update.",
@@ -15,10 +24,12 @@ const DEFAULT_INSIGHT: EmailInsight = {
   action: null
 };
 
-await runSuccessScenario();
-await runFailureScenario();
+await runAgentSuccessScenario();
+await runAgentFailureScenario();
+await runDraftReplySuccessScenario();
+await runDraftReplyFailureScenario();
 
-async function runSuccessScenario(): Promise<void> {
+async function runAgentSuccessScenario(): Promise<void> {
   const dependencies = createDependencies({
     list: () =>
       Promise.resolve({
@@ -50,7 +61,7 @@ async function runSuccessScenario(): Promise<void> {
   await runAgentRequest(dependencies);
 }
 
-async function runFailureScenario(): Promise<void> {
+async function runAgentFailureScenario(): Promise<void> {
   const dependencies = createDependencies({
     list: () => Promise.reject(new Error("Gmail unavailable")),
     get: () => Promise.reject(new Error("Unreachable get in failure scenario"))
@@ -59,14 +70,57 @@ async function runFailureScenario(): Promise<void> {
   await runAgentRequest(dependencies);
 }
 
+async function runDraftReplySuccessScenario(): Promise<void> {
+  const gmailClient = {
+    getMessage: (() =>
+      Promise.resolve({
+        data: createMessage("target-email", "thread-reply-1")
+      })) as unknown as DraftReplyGmailContextClient["getMessage"],
+    getThread: (() =>
+      Promise.resolve({
+        data: {
+          messages: [createMessage("target-email", "thread-reply-1")]
+        }
+      })) as unknown as DraftReplyGmailContextClient["getThread"]
+  } as DraftReplyGmailContextClient;
+
+  const dependencies = createDraftReplyDependencies(gmailClient);
+
+  await runDraftReplyRequest(
+    dependencies,
+    JSON.stringify({
+      emailId: "target-email",
+      runId: "run-draft-success",
+      threadId: "thread-draft-success"
+    })
+  );
+}
+
+async function runDraftReplyFailureScenario(): Promise<void> {
+  const gmailClient = {
+    getMessage: (() =>
+      Promise.resolve({
+        data: createMessage("target-email", "thread-reply-1")
+      })) as unknown as DraftReplyGmailContextClient["getMessage"],
+    getThread: (() =>
+      Promise.resolve({
+        data: { messages: [] }
+      })) as unknown as DraftReplyGmailContextClient["getThread"]
+  } as DraftReplyGmailContextClient;
+
+  const dependencies = createDraftReplyDependencies(gmailClient);
+
+  await runDraftReplyRequest(dependencies, "{malformed-json");
+}
+
 function createDependencies(gmailClient: GmailMessagesApi): AgentEndpointDependencies {
   return {
-    createAuthClient: () => ({ id: "auth-client" }),
+    createAuthClient: () => ({ id: "auth-client" }) as unknown as Auth.OAuth2Client,
     createGmailMessagesApi: () => gmailClient,
     fetchUnreadEmails,
     extractEmailInsight: () => Promise.resolve(DEFAULT_INSIGHT),
     model: "anthropic:test-model",
-    createMessageId: () => "message-1"
+    createMessageId: () => "00000000-0000-0000-0000-000000000001"
   };
 }
 
@@ -77,6 +131,96 @@ async function runAgentRequest(dependencies: AgentEndpointDependencies): Promise
 
   const response = await handleAgentEndpoint(request, dependencies);
   await response.text();
+}
+
+function createDraftReplyDependencies(
+  gmailClient: DraftReplyGmailContextClient
+): DraftReplyEndpointDependencies {
+  const targetEmail = createEmailMetadata({
+    id: "target-email",
+    threadId: "thread-reply-1",
+    subject: "Re: Planning",
+    from: "manager@example.com",
+    to: "you@example.com",
+    date: "Sat, 14 Feb 2026 13:30:00 +0000",
+    snippet: "Need your update",
+    bodyText: "Can you send your update by tomorrow morning?"
+  });
+
+  return {
+    createAuthClient: () => ({ id: "auth-client" }) as unknown as Auth.OAuth2Client,
+    createGmailReplyContextApi: () => gmailClient,
+    createGmailDraftsApi: () => ({
+      create: () =>
+        Promise.resolve({
+          data: {
+            id: "draft-id",
+            message: {
+              threadId: "thread-reply-1"
+            }
+          }
+        })
+    }),
+    fetchReplyContext: () =>
+      Promise.resolve({
+        email: targetEmail,
+        threadId: "thread-reply-1",
+        contextMessages: [targetEmail],
+        contextMessageCount: 1,
+        contextDegraded: true,
+        replyHeaders: {
+          inReplyTo: "<target-email@example.com>",
+          references: "<ancestor@example.com> <target-email@example.com>"
+        }
+      }),
+    extractDraftReply: () =>
+      Promise.resolve({
+        draftText: "Thanks for the update request. I will send the status by tomorrow morning.",
+        riskFlags: ["missing_context"]
+      }),
+    createReplyDraft: () =>
+      Promise.resolve({
+        id: "gmail-draft-1",
+        threadId: "thread-reply-1"
+      }),
+    model: "anthropic:test-model",
+    createMessageId: () => "00000000-0000-0000-0000-000000000002"
+  } as unknown as DraftReplyEndpointDependencies;
+}
+
+async function runDraftReplyRequest(
+  dependencies: DraftReplyEndpointDependencies,
+  body: string
+): Promise<void> {
+  const request = new Request("http://localhost:3001/draft-reply", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body
+  });
+
+  const response = await handleDraftReplyEndpoint(request, dependencies);
+  await response.text();
+}
+
+function createMessage(id: string, threadId: string) {
+  return {
+    id,
+    threadId,
+    snippet: `Snippet ${id}`,
+    payload: {
+      headers: [
+        { name: "Subject", value: `Subject ${id}` },
+        { name: "From", value: "sender@example.com" },
+        { name: "To", value: "recipient@example.com" },
+        { name: "Date", value: "Sat, 14 Feb 2026 13:00:00 +0000" }
+      ],
+      body: {
+        data: toBase64Url(`Body ${id}`)
+      }
+    }
+  };
 }
 
 function toBase64Url(value: string): string {
