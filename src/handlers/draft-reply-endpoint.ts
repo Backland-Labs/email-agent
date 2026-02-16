@@ -14,7 +14,6 @@ import {
   encodeTextMessageStart
 } from "../services/streaming/encode-ag-ui-events.js";
 import { createDraftReplyEndpointDefaultDependencies } from "./draft-reply-endpoint-default-dependencies.js";
-import type { DraftReplyEndpointDependencies } from "./draft-reply-endpoint-dependencies.js";
 import {
   DRAFT_REPLY_ERROR_CODES,
   DraftReplyEndpointError,
@@ -34,16 +33,20 @@ const SSE_HEADERS = {
   "cache-control": "no-cache",
   connection: "keep-alive"
 };
-export type { DraftReplyEndpointDependencies } from "./draft-reply-endpoint-dependencies.js";
+
+export type DraftReplyEndpointDependencies = ReturnType<
+  typeof createDraftReplyEndpointDefaultDependencies
+>;
 
 export async function handleDraftReplyEndpoint(
   request: Request,
-  dependencies: DraftReplyEndpointDependencies = createDraftReplyEndpointDefaultDependencies()
+  dependencies?: DraftReplyEndpointDependencies
 ): Promise<Response> {
+  const effectiveDependencies = dependencies ?? createDraftReplyEndpointDefaultDependencies();
   const requestId = crypto.randomUUID();
   const parsedBody = await parseDraftReplyRequestBody(request);
   const runContext = resolveDraftReplyRunContext(parsedBody.body, requestId);
-  const messageId = dependencies.createMessageId();
+  const messageId = effectiveDependencies.createMessageId();
   const runLogger = draftReplyLogger.child({
     requestId,
     runId: runContext.runId,
@@ -150,14 +153,14 @@ export async function handleDraftReplyEndpoint(
         controller.enqueue(encodeTextMessageStart({ messageId }));
         textMessageStarted = true;
 
-        const authClient = dependencies.createAuthClient();
-        const gmailClient = dependencies.createGmailReplyContextApi(authClient);
-        const gmailDraftsApi = dependencies.createGmailDraftsApi(authClient);
+        const authClient = effectiveDependencies.createAuthClient();
+        const gmailClient = effectiveDependencies.createGmailReplyContextApi(authClient);
+        const gmailDraftsApi = effectiveDependencies.createGmailDraftsApi(authClient);
 
         let context: ReplyContext;
 
         try {
-          context = await dependencies.fetchReplyContext(gmailClient, {
+          context = await effectiveDependencies.fetchReplyContext(gmailClient, {
             emailId: parsedRequest.emailId,
             ...(parsedRequest.threadId ? { threadId: parsedRequest.threadId } : {})
           });
@@ -188,7 +191,7 @@ export async function handleDraftReplyEndpoint(
         let draftReply: DraftReplyModelOutput;
 
         try {
-          draftReply = await dependencies.extractDraftReply(dependencies.model, {
+          draftReply = await effectiveDependencies.extractDraftReply(effectiveDependencies.model, {
             email: context.email,
             contextMessages: context.contextMessages,
             contextDegraded: context.contextDegraded,
@@ -206,7 +209,7 @@ export async function handleDraftReplyEndpoint(
 
         assertDraftReplyNotAborted(request.signal);
 
-        const savedDraft = await dependencies
+        const savedDraft = await effectiveDependencies
           .createReplyDraft(gmailDraftsApi, {
             threadId: context.threadId,
             to: context.email.from,

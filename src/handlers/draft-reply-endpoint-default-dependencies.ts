@@ -1,6 +1,4 @@
 import { google, type Auth } from "googleapis";
-
-import type { DraftReplyEndpointDependencies } from "./draft-reply-endpoint-dependencies.js";
 import { extractDraftReply } from "../services/ai/extract-draft-reply.js";
 import { createAuthClient } from "../services/gmail/create-auth-client.js";
 import {
@@ -15,7 +13,7 @@ import {
 
 const DEFAULT_MODEL = "claude-sonnet-4-20250514";
 
-export function createDraftReplyEndpointDefaultDependencies(): DraftReplyEndpointDependencies {
+export function createDraftReplyEndpointDefaultDependencies() {
   const gmailClientCache = new WeakMap<object, ReturnType<typeof google.gmail>>();
 
   const createGmailClient = (authClient: unknown) => {
@@ -44,7 +42,7 @@ export function createDraftReplyEndpointDefaultDependencies(): DraftReplyEndpoin
 
   return {
     createAuthClient,
-    createGmailReplyContextApi: (authClient) => {
+    createGmailReplyContextApi: (authClient: unknown) => {
       const gmail = createGmailClient(authClient);
 
       return {
@@ -64,7 +62,7 @@ export function createDraftReplyEndpointDefaultDependencies(): DraftReplyEndpoin
     },
     fetchReplyContext,
     extractDraftReply,
-    createGmailDraftsApi: (authClient) => {
+    createGmailDraftsApi: (authClient: unknown) => {
       const gmail = createGmailClient(authClient);
 
       return {

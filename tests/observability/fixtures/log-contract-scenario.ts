@@ -1,3 +1,4 @@
+import type { Auth } from "googleapis";
 import type { EmailInsight } from "../../../src/domain/email-insight.js";
 import { createEmailMetadata } from "../../../src/domain/email-metadata.js";
 import {
@@ -12,7 +13,9 @@ import {
   fetchUnreadEmails,
   type GmailMessagesApi
 } from "../../../src/services/gmail/fetch-unread-emails.js";
-import type { GmailReplyContextApi } from "../../../src/services/gmail/fetch-reply-context.js";
+type DraftReplyGmailContextClient = ReturnType<
+  DraftReplyEndpointDependencies["createGmailReplyContextApi"]
+>;
 
 const DEFAULT_INSIGHT: EmailInsight = {
   summary: "A routine quarterly update.",
@@ -68,15 +71,20 @@ async function runAgentFailureScenario(): Promise<void> {
 }
 
 async function runDraftReplySuccessScenario(): Promise<void> {
-  const dependencies = createDraftReplyDependencies({
-    getMessage: () => Promise.resolve({ data: createMessage("target-email", "thread-reply-1") }),
-    getThread: () =>
+  const gmailClient = {
+    getMessage: (() =>
+      Promise.resolve({
+        data: createMessage("target-email", "thread-reply-1")
+      })) as unknown as DraftReplyGmailContextClient["getMessage"],
+    getThread: (() =>
       Promise.resolve({
         data: {
           messages: [createMessage("target-email", "thread-reply-1")]
         }
-      })
-  });
+      })) as unknown as DraftReplyGmailContextClient["getThread"]
+  } as DraftReplyGmailContextClient;
+
+  const dependencies = createDraftReplyDependencies(gmailClient);
 
   await runDraftReplyRequest(
     dependencies,
@@ -89,22 +97,30 @@ async function runDraftReplySuccessScenario(): Promise<void> {
 }
 
 async function runDraftReplyFailureScenario(): Promise<void> {
-  const dependencies = createDraftReplyDependencies({
-    getMessage: () => Promise.resolve({ data: createMessage("target-email", "thread-reply-1") }),
-    getThread: () => Promise.resolve({ data: { messages: [] } })
-  });
+  const gmailClient = {
+    getMessage: (() =>
+      Promise.resolve({
+        data: createMessage("target-email", "thread-reply-1")
+      })) as unknown as DraftReplyGmailContextClient["getMessage"],
+    getThread: (() =>
+      Promise.resolve({
+        data: { messages: [] }
+      })) as unknown as DraftReplyGmailContextClient["getThread"]
+  } as DraftReplyGmailContextClient;
+
+  const dependencies = createDraftReplyDependencies(gmailClient);
 
   await runDraftReplyRequest(dependencies, "{malformed-json");
 }
 
 function createDependencies(gmailClient: GmailMessagesApi): AgentEndpointDependencies {
   return {
-    createAuthClient: () => ({ id: "auth-client" }),
+    createAuthClient: () => ({ id: "auth-client" }) as unknown as Auth.OAuth2Client,
     createGmailMessagesApi: () => gmailClient,
     fetchUnreadEmails,
     extractEmailInsight: () => Promise.resolve(DEFAULT_INSIGHT),
     model: "anthropic:test-model",
-    createMessageId: () => "message-1"
+    createMessageId: () => "00000000-0000-0000-0000-000000000001"
   };
 }
 
@@ -118,7 +134,7 @@ async function runAgentRequest(dependencies: AgentEndpointDependencies): Promise
 }
 
 function createDraftReplyDependencies(
-  gmailClient: GmailReplyContextApi
+  gmailClient: DraftReplyGmailContextClient
 ): DraftReplyEndpointDependencies {
   const targetEmail = createEmailMetadata({
     id: "target-email",
@@ -132,7 +148,7 @@ function createDraftReplyDependencies(
   });
 
   return {
-    createAuthClient: () => ({ id: "auth-client" }),
+    createAuthClient: () => ({ id: "auth-client" }) as unknown as Auth.OAuth2Client,
     createGmailReplyContextApi: () => gmailClient,
     createGmailDraftsApi: () => ({
       create: () =>
@@ -168,8 +184,8 @@ function createDraftReplyDependencies(
         threadId: "thread-reply-1"
       }),
     model: "anthropic:test-model",
-    createMessageId: () => "draft-message-1"
-  };
+    createMessageId: () => "00000000-0000-0000-0000-000000000002"
+  } as unknown as DraftReplyEndpointDependencies;
 }
 
 async function runDraftReplyRequest(

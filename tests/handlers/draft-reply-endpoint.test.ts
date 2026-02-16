@@ -1,5 +1,6 @@
 /* eslint-disable max-lines */
 import { describe, expect, it, vi } from "vitest";
+import type { Auth } from "googleapis";
 
 import { createEmailMetadata } from "../../src/domain/email-metadata.js";
 import {
@@ -20,7 +21,7 @@ function createDependencies(): DraftReplyEndpointDependencies {
   });
 
   return {
-    createAuthClient: vi.fn(() => ({ token: "token" })),
+    createAuthClient: vi.fn(() => ({ token: "token" }) as unknown as Auth.OAuth2Client),
     createGmailReplyContextApi: vi.fn(() => ({
       getMessage: vi.fn(),
       getThread: vi.fn()
@@ -55,7 +56,7 @@ function createDependencies(): DraftReplyEndpointDependencies {
       })
     ),
     model: "claude-sonnet-4-20250514",
-    createMessageId: () => "message-1"
+    createMessageId: () => "00000000-0000-0000-0000-000000000001"
   };
 }
 

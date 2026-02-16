@@ -91,6 +91,7 @@ import { createEmailMetadata } from "../../src/domain/email-metadata.js";
 import { handleDraftReplyEndpoint } from "../../src/handlers/draft-reply-endpoint.js";
 import { extractDraftReply } from "../../src/services/ai/extract-draft-reply.js";
 import { createAuthClient } from "../../src/services/gmail/create-auth-client.js";
+import { createDraftReplyEndpointDefaultDependencies } from "../../src/handlers/draft-reply-endpoint-default-dependencies.js";
 import { createReplyDraft } from "../../src/services/gmail/create-reply-draft.js";
 import { fetchReplyContext } from "../../src/services/gmail/fetch-reply-context.js";
 
@@ -152,6 +153,25 @@ describe("handleDraftReplyEndpoint with default dependencies", () => {
     );
     expect(vi.mocked(createReplyDraft)).toHaveBeenCalledTimes(1);
     expect(body).toContain('"type":"RUN_FINISHED"');
+  });
+
+  it("reuses the Gmail client factory path for object auth inputs", () => {
+    const dependencies = createDraftReplyEndpointDefaultDependencies();
+
+    dependencies.createGmailReplyContextApi({ token: "mock-token" });
+
+    expect(vi.mocked(google.gmail)).toHaveBeenCalledTimes(1);
+  });
+
+  it("handles non-object auth input when creating Gmail client", () => {
+    const dependencies = createDraftReplyEndpointDefaultDependencies();
+
+    dependencies.createGmailReplyContextApi(null);
+
+    expect(vi.mocked(google.gmail)).toHaveBeenCalledWith({
+      version: "v1",
+      auth: null
+    });
   });
 
   it("uses env model and wires Gmail get methods through fetchReplyContext", async () => {
