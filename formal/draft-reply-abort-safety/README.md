@@ -20,4 +20,4 @@ This TLA+ model verifies the `POST /draft-reply` save boundary around `createRep
 bun run formal:verify
 ```
 
-The command runs TLC for the production config, then reruns TLC with the mutation config and requires an invariant counterexample trace.
+The command runs all draft-reply baseline models (including no-send safety), then reruns TLC with the mutation config and requires an invariant counterexample trace.

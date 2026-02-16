@@ -19,7 +19,7 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Run formal verification (baseline)
+      - name: Run formal verification baselines
         run: node scripts/verify-draft-reply-formal.mjs --baseline
 
       - name: Run formal mutation check
