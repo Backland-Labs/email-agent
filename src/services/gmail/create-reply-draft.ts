@@ -94,6 +94,10 @@ function toReplySubject(subject: string): string {
   return `Re: ${normalized}`;
 }
 
+function sanitizeHeaderValue(value: string): string {
+  return value.replace(/[\r\n]/g, " ").trim();
+}
+
 function buildMimeMessage(input: {
   to: string;
   subject: string;
@@ -101,20 +105,25 @@ function buildMimeMessage(input: {
   inReplyTo?: string;
   references?: string;
 }): string {
+  const to = sanitizeHeaderValue(input.to);
+  const subject = sanitizeHeaderValue(input.subject);
+  const inReplyTo = input.inReplyTo ? sanitizeHeaderValue(input.inReplyTo) : "";
+  const references = input.references ? sanitizeHeaderValue(input.references) : "";
+
   const headers = [
-    `To: ${input.to}`,
-    `Subject: ${input.subject}`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
     "MIME-Version: 1.0",
     'Content-Type: text/plain; charset="UTF-8"',
     "Content-Transfer-Encoding: 8bit"
   ];
 
-  if (input.inReplyTo?.trim()) {
-    headers.push(`In-Reply-To: ${input.inReplyTo.trim()}`);
+  if (inReplyTo.length > 0) {
+    headers.push(`In-Reply-To: ${inReplyTo}`);
   }
 
-  if (input.references?.trim()) {
-    headers.push(`References: ${input.references.trim()}`);
+  if (references.length > 0) {
+    headers.push(`References: ${references}`);
   }
 
   const bodyText = input.bodyText.replace(/\r?\n/g, "\r\n").trimEnd();
