@@ -1,18 +1,12 @@
-import {
-  OpenAPIRegistry,
-  OpenApiGeneratorV3,
-  extendZodWithOpenApi
-} from "@asteasolutions/zod-to-openapi";
+import "../domain/zod-openapi-extensions.js";
+
+import { OpenAPIRegistry, OpenApiGeneratorV3 } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 
-import {
-  draftReplyRequestSchema,
-  draftReplyRunResultSchema
-} from "../domain/draft-reply-request.js";
+import { draftReplyRequestSchema } from "../domain/draft-reply-request.js";
+import { draftReplyRunResultSchema } from "../domain/draft-reply-result.js";
 import { emailInsightSchema } from "../domain/email-insight.js";
 import { emailMetadataSchema } from "../domain/email-metadata.js";
-
-extendZodWithOpenApi(z);
 
 const registry = new OpenAPIRegistry();
 

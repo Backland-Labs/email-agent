@@ -56,9 +56,9 @@ describe("generateOpenApiSpec", () => {
       paths: { "/health": { get: { summary: string; responses: Record<string, unknown> } } };
     };
 
-    expect(spec.paths["/health"]?.get).toBeDefined();
-    expect(spec.paths["/health"]?.get?.summary).toBe("Check server health");
-    expect(spec.paths["/health"]?.get?.responses).toBeDefined();
+    expect(spec.paths["/health"].get).toBeDefined();
+    expect(spec.paths["/health"].get.summary).toBe("Check server health");
+    expect(spec.paths["/health"].get.responses).toBeDefined();
   });
 
   it("includes POST method for agent endpoint", () => {
@@ -66,9 +66,9 @@ describe("generateOpenApiSpec", () => {
       paths: { "/agent": { post: { summary: string; responses: Record<string, unknown> } } };
     };
 
-    expect(spec.paths["/agent"]?.post).toBeDefined();
-    expect(spec.paths["/agent"]?.post?.summary).toBe("Stream email insights");
-    expect(spec.paths["/agent"]?.post?.responses).toBeDefined();
+    expect(spec.paths["/agent"].post).toBeDefined();
+    expect(spec.paths["/agent"].post.summary).toBe("Stream email insights");
+    expect(spec.paths["/agent"].post.responses).toBeDefined();
   });
 
   it("includes POST method for draft-reply endpoint with request body", () => {
@@ -77,17 +77,17 @@ describe("generateOpenApiSpec", () => {
         "/draft-reply": {
           post: {
             summary: string;
-            request?: { body: { required: boolean } };
+            requestBody?: { required: boolean };
             responses: Record<string, unknown>;
           };
         };
       };
     };
 
-    expect(spec.paths["/draft-reply"]?.post).toBeDefined();
-    expect(spec.paths["/draft-reply"]?.post?.summary).toBe("Draft a reply to an email");
-    expect(spec.paths["/draft-reply"]?.post?.request?.body?.required).toBe(true);
-    expect(spec.paths["/draft-reply"]?.post?.responses).toBeDefined();
+    expect(spec.paths["/draft-reply"].post).toBeDefined();
+    expect(spec.paths["/draft-reply"].post.summary).toBe("Draft a reply to an email");
+    expect(spec.paths["/draft-reply"].post.requestBody?.required).toBe(true);
+    expect(spec.paths["/draft-reply"].post.responses).toBeDefined();
   });
 
   it("includes GET methods for api-docs endpoints", () => {
@@ -98,10 +98,10 @@ describe("generateOpenApiSpec", () => {
       };
     };
 
-    expect(spec.paths["/api-docs.json"]?.get).toBeDefined();
-    expect(spec.paths["/api-docs.json"]?.get?.summary).toContain("OpenAPI specification");
+    expect(spec.paths["/api-docs.json"].get).toBeDefined();
+    expect(spec.paths["/api-docs.json"].get.summary).toContain("OpenAPI specification");
 
-    expect(spec.paths["/api-docs.md"]?.get).toBeDefined();
-    expect(spec.paths["/api-docs.md"]?.get?.summary).toContain("Markdown");
+    expect(spec.paths["/api-docs.md"].get).toBeDefined();
+    expect(spec.paths["/api-docs.md"].get.summary).toContain("Markdown");
   });
 });

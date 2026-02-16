@@ -99,6 +99,10 @@ describe("convertOpenApiToMarkdown", () => {
                 in: "query",
                 required: true,
                 description: "Test ID"
+              },
+              {
+                name: "cursor",
+                in: "query"
               }
             ]
           }
@@ -110,6 +114,7 @@ describe("convertOpenApiToMarkdown", () => {
 
     expect(markdown).toContain("**Parameters:**");
     expect(markdown).toContain("`id` (query) (required)");
+    expect(markdown).toContain("`cursor` (query) (optional)");
     expect(markdown).toContain("Test ID");
   });
 
@@ -170,7 +175,8 @@ describe("convertOpenApiToMarkdown", () => {
                     schema: { type: "object" }
                   }
                 }
-              }
+              },
+              "400": {}
             }
           }
         }
@@ -182,6 +188,7 @@ describe("convertOpenApiToMarkdown", () => {
     expect(markdown).toContain("**Responses:**");
     expect(markdown).toContain("**200**: Success response");
     expect(markdown).toContain("Content-Type: application/json");
+    expect(markdown).toContain("**400**: No description");
   });
 
   it("includes schema definitions", () => {
