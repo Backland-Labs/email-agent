@@ -213,4 +213,44 @@ describe("agent endpoint runtime coverage", () => {
       restore();
     }
   });
+
+  it("handles controller.close() throwing an error in finally block", async () => {
+    const dependencies = createDependencies();
+    const runLogger = createRunLogger();
+    const request = new Request("http://localhost:3001/agent", { method: "POST" });
+
+    dependencies.fetchUnreadEmails = vi.fn(() => Promise.resolve([]));
+
+    const { events, streamStarted, restore } = createFailingReadableStream({
+      shouldFail: () => undefined,
+      shouldFailClose: true
+    });
+
+    try {
+      createAgentEndpointStream({
+        request,
+        dependencies,
+        runContext: {
+          runId: "run-close-fail",
+          threadId: "thread-close-fail"
+        },
+        runLogger,
+        messageId: "message-close-fail",
+        requestId: "request-close-fail"
+      });
+
+      await streamStarted;
+      const body = events.join("");
+
+      expect(events.length).toBeGreaterThan(0);
+      expect(body).toContain('"type":"RUN_STARTED"');
+      expect(body).toContain('"type":"RUN_FINISHED"');
+      expect(runLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "agent.run_completed" }),
+        "Completed agent run"
+      );
+    } finally {
+      restore();
+    }
+  });
 });

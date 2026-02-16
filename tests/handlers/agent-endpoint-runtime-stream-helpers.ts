@@ -5,6 +5,7 @@ import type { AgentEndpointDependencies } from "../../src/handlers/agent-endpoin
 
 type FakeReadableStreamInput = {
   shouldFail: (enqueueIndex: number) => Error | undefined;
+  shouldFailClose?: boolean;
 };
 
 type FakeReadableStreamHandle = {
@@ -14,7 +15,8 @@ type FakeReadableStreamHandle = {
 };
 
 export function createFailingReadableStream({
-  shouldFail
+  shouldFail,
+  shouldFailClose = false
 }: FakeReadableStreamInput): FakeReadableStreamHandle {
   const events: string[] = [];
   let streamStartedResolve: () => void = () => {};
@@ -43,7 +45,9 @@ export function createFailingReadableStream({
         events.push(new TextDecoder().decode(data));
       },
       close: () => {
-        // no-op
+        if (shouldFailClose) {
+          throw new Error("Controller is already closed");
+        }
       }
     };
 
