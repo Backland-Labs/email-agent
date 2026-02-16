@@ -14,7 +14,6 @@ import {
   encodeTextMessageStart
 } from "../services/streaming/encode-ag-ui-events.js";
 import { createDraftReplyEndpointDefaultDependencies } from "./draft-reply-endpoint-default-dependencies.js";
-import type { DraftReplyEndpointDependencies } from "./draft-reply-endpoint-dependencies.js";
 import {
   DRAFT_REPLY_ERROR_CODES,
   DraftReplyEndpointError,
@@ -207,29 +206,6 @@ export async function handleDraftReplyEndpoint(
             error
           );
         }
-
-        assertDraftReplyNotAborted(request.signal);
-
-        const savedDraft = await dependencies
-          .createReplyDraft(gmailDraftsApi, {
-            threadId: context.threadId,
-            to: context.email.from,
-            subject: context.email.subject,
-            bodyText: draftReply.draftText,
-            ...(context.replyHeaders.inReplyTo
-              ? { inReplyTo: context.replyHeaders.inReplyTo }
-              : {}),
-            ...(context.replyHeaders.references
-              ? { references: context.replyHeaders.references }
-              : {})
-          })
-          .catch((error: unknown) => {
-            throw new DraftReplyEndpointError(
-              toErrorMessage(error),
-              DRAFT_REPLY_ERROR_CODES.draftSaveFailed,
-              error
-            );
-          });
 
         assertDraftReplyNotAborted(request.signal);
 
