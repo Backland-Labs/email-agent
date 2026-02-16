@@ -5,10 +5,27 @@ import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 
 const projectRoot = process.cwd();
-const specDirectory = path.join(projectRoot, "formal", "draft-reply-abort-safety");
-const specFile = "DraftReplyAbortSafety.tla";
-const goodConfig = "DraftReplyAbortSafety.cfg";
-const mutationConfig = "DraftReplyAbortSafetyMutation.cfg";
+const baselineSpecs = [
+  {
+    name: "draft-reply no-send safety",
+    specDirectory: path.join(projectRoot, "formal"),
+    specFile: "draft_reply_safety.tla",
+    configFile: "draft_reply_safety.cfg"
+  },
+  {
+    name: "draft-reply abort-safety baseline",
+    specDirectory: path.join(projectRoot, "formal", "draft-reply-abort-safety"),
+    specFile: "DraftReplyAbortSafety.tla",
+    configFile: "DraftReplyAbortSafety.cfg"
+  }
+];
+
+const mutationSpec = {
+  name: "draft-reply abort-safety mutation",
+  specDirectory: path.join(projectRoot, "formal", "draft-reply-abort-safety"),
+  specFile: "DraftReplyAbortSafety.tla",
+  configFile: "DraftReplyAbortSafetyMutation.cfg"
+};
 
 const jarPath =
   process.env.TLA2TOOLS_JAR ?? path.join(os.homedir(), ".cache", "email-agent", "tla2tools.jar");
@@ -30,19 +47,24 @@ if (!javaBin) {
 await ensureTlaJar();
 
 if (both || baselineOnly) {
-  const verifiedRun = runTlc(goodConfig);
+  for (const spec of baselineSpecs) {
+    const run = runTlc(spec);
 
-  if (verifiedRun.status !== 0) {
-    process.stderr.write(verifiedRun.output);
-    process.exit(1);
+    if (run.status !== 0) {
+      process.stderr.write(run.output);
+      console.error(`Baseline check failed for ${spec.name}.`);
+      process.exit(1);
+    }
+
+    process.stdout.write(run.output);
+    console.log(`Baseline check passed for ${spec.name}.`);
   }
 
-  process.stdout.write(verifiedRun.output);
   console.log("Formal baseline checks passed.");
 }
 
 if (both || mutationOnly) {
-  const mutationRun = runTlc(mutationConfig);
+  const mutationRun = runTlc(mutationSpec);
   const mutationTraceMarkers = ["InvStrictAbortSafe", "State 1"];
 
   if (mutationRun.status === 0) {
@@ -78,11 +100,11 @@ async function ensureTlaJar() {
   await writeFile(jarPath, new Uint8Array(body));
 }
 
-function runTlc(configFile) {
+function runTlc(spec) {
   const metaDir = path.join(
-    specDirectory,
+    spec.specDirectory,
     "states",
-    `${configFile}-${process.pid}-${Date.now()}-${Math.floor(Math.random() * 1_000_000_000)}`
+    `${spec.configFile}-${process.pid}-${Date.now()}-${Math.floor(Math.random() * 1_000_000_000)}`
   );
 
   const result = spawnSync(
@@ -97,11 +119,11 @@ function runTlc(configFile) {
       "-metadir",
       metaDir,
       "-config",
-      configFile,
-      specFile
+      spec.configFile,
+      spec.specFile
     ],
     {
-      cwd: specDirectory,
+      cwd: spec.specDirectory,
       encoding: "utf8"
     }
   );
