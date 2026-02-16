@@ -1,3 +1,4 @@
+import "./zod-openapi-extensions.js";
 import { z } from "zod";
 
 declare const emailIdBrand: unique symbol;

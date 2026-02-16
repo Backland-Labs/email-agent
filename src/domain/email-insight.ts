@@ -1,3 +1,4 @@
+import "./zod-openapi-extensions.js";
 import { z } from "zod";
 
 export type EmailCategory = "personal" | "business" | "automated" | "newsletter_or_spam";

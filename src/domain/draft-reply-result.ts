@@ -1,3 +1,4 @@
+import "./zod-openapi-extensions.js";
 import { z } from "zod";
 
 import { parseEmailId, type EmailId } from "./email-metadata.js";

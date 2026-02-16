@@ -1,4 +1,6 @@
 import { handleAgentEndpoint } from "./handlers/agent-endpoint.js";
+import { handleApiDocsJsonEndpoint } from "./handlers/api-docs-json-endpoint.js";
+import { handleApiDocsMarkdownEndpoint } from "./handlers/api-docs-markdown-endpoint.js";
 import { handleDraftReplyEndpoint } from "./handlers/draft-reply-endpoint.js";
 import { handleHealthEndpoint } from "./handlers/health-endpoint.js";
 
@@ -9,12 +11,16 @@ export type ServerRouteHandlers = {
   handleAgentEndpoint: (request: Request) => Promise<Response>;
   handleDraftReplyEndpoint: (request: Request) => Promise<Response>;
   handleHealthEndpoint: () => Response;
+  handleApiDocsJsonEndpoint: () => Response;
+  handleApiDocsMarkdownEndpoint: () => Response;
 };
 
 const defaultHandlers: ServerRouteHandlers = {
   handleAgentEndpoint,
   handleDraftReplyEndpoint,
-  handleHealthEndpoint
+  handleHealthEndpoint,
+  handleApiDocsJsonEndpoint,
+  handleApiDocsMarkdownEndpoint
 };
 
 export function createServerFetchHandler(handlers: ServerRouteHandlers) {
@@ -43,6 +49,22 @@ export function createServerFetchHandler(handlers: ServerRouteHandlers) {
       }
 
       return handlers.handleHealthEndpoint();
+    }
+
+    if (requestUrl.pathname === "/api-docs.json") {
+      if (request.method !== "GET") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+
+      return handlers.handleApiDocsJsonEndpoint();
+    }
+
+    if (requestUrl.pathname === "/api-docs.md") {
+      if (request.method !== "GET") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+
+      return handlers.handleApiDocsMarkdownEndpoint();
     }
 
     return new Response("Not Found", { status: 404 });
