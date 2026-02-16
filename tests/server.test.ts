@@ -53,7 +53,7 @@ describe("server routing", () => {
     const response = await fetchHandler(
       new Request("http://localhost:3001/draft-reply", {
         method: "POST",
-        body: JSON.stringify({ emailId: "email-1" })
+        body: JSON.stringify({ emailId: "validemailid001" })
       })
     );
 

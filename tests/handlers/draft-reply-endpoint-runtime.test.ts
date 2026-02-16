@@ -16,13 +16,13 @@ describe("draft reply endpoint runtime helpers", () => {
     const request = new Request("http://localhost:3001/draft-reply", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ emailId: "email-1" })
+      body: JSON.stringify({ emailId: "validemailid001" })
     });
 
     const parsed = await parseDraftReplyRequestBody(request);
 
     expect(parsed.invalidJson).toBe(false);
-    expect(parsed.body).toEqual({ emailId: "email-1" });
+    expect(parsed.body).toEqual({ emailId: "validemailid001" });
   });
 
   it("returns empty body when request has no body", async () => {

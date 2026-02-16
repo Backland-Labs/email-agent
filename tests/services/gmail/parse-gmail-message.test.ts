@@ -14,7 +14,7 @@ function toBase64Url(value: string): string {
 describe("parseGmailMessage", () => {
   it("extracts plain text body", () => {
     const message = {
-      id: "message-1",
+      id: "validmessage001",
       threadId: "thread-1",
       snippet: "Plain text snippet",
       payload: {
@@ -38,7 +38,7 @@ describe("parseGmailMessage", () => {
 
   it("prefers text/plain over text/html in multipart messages", () => {
     const message = {
-      id: "message-2",
+      id: "validmessage002",
       threadId: "thread-2",
       snippet: "Multipart snippet",
       payload: {
@@ -68,7 +68,7 @@ describe("parseGmailMessage", () => {
 
   it("falls back to stripped HTML when plain text is unavailable", () => {
     const message = {
-      id: "message-3",
+      id: "validmessage003",
       threadId: "thread-3",
       snippet: "HTML snippet",
       payload: {
@@ -94,7 +94,7 @@ describe("parseGmailMessage", () => {
 
   it("returns empty body when message body is missing", () => {
     const message = {
-      id: "message-4",
+      id: "validmessage004",
       threadId: "thread-4",
       snippet: "No body snippet",
       payload: {
@@ -114,7 +114,7 @@ describe("parseGmailMessage", () => {
 
   it("extracts required headers into metadata fields", () => {
     const message = {
-      id: "message-5",
+      id: "validmessage005",
       threadId: "thread-5",
       snippet: "Header snippet",
       payload: {
@@ -141,7 +141,7 @@ describe("parseGmailMessage", () => {
 
   it("uses fallback values when headers are missing", () => {
     const message = {
-      id: "message-6",
+      id: "validmessage006",
       threadId: "thread-6",
       snippet: "Missing headers",
       payload: {
@@ -162,7 +162,7 @@ describe("parseGmailMessage", () => {
 
   it("returns empty body when payload is missing", () => {
     const message = {
-      id: "message-7",
+      id: "validmessage007",
       threadId: "thread-7",
       snippet: "No payload"
     };
@@ -175,7 +175,7 @@ describe("parseGmailMessage", () => {
 
   it("defaults missing threadId and snippet to empty strings", () => {
     const message = {
-      id: "message-8",
+      id: "validmessage008",
       payload: {
         headers: [{ name: "Subject", value: "No thread/snippet" }],
         body: {
@@ -207,7 +207,7 @@ describe("parseGmailMessage", () => {
 
   it("handles text/plain part without body data", () => {
     const message = {
-      id: "message-10",
+      id: "validmessage0010",
       threadId: "thread-10",
       snippet: "No plain data",
       payload: {
