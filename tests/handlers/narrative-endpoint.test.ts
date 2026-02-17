@@ -208,6 +208,12 @@ describe("handleNarrativeEndpoint", () => {
 
     expect(body).toContain('"type":"RUN_ERROR"');
     expect(body).toContain("Gmail unavailable");
+
+    const textMessageEndIndex = body.indexOf('"type":"TEXT_MESSAGE_END"');
+    const runErrorIndex = body.indexOf('"type":"RUN_ERROR"');
+
+    expect(textMessageEndIndex).toBeGreaterThan(-1);
+    expect(runErrorIndex).toBeGreaterThan(textMessageEndIndex);
   });
 
   it("emits unknown error message for non-Error failures", async () => {

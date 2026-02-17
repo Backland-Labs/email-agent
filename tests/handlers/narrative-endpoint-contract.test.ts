@@ -83,6 +83,23 @@ describe("handleNarrativeEndpoint contract invariants", () => {
     expect(getTerminalEventCount(errorBody)).toBe(1);
   });
 
+  it("emits TEXT_MESSAGE_END before RUN_ERROR when error occurs after TEXT_MESSAGE_START", async () => {
+    const dependencies = createDependencies();
+
+    dependencies.fetchUnreadEmails = vi.fn(() => Promise.reject(new Error("Gmail down")));
+
+    const response = await handleNarrativeEndpoint(createRequest(), dependencies);
+    const body = await response.text();
+
+    const textMessageStartIndex = body.indexOf('"type":"TEXT_MESSAGE_START"');
+    const textMessageEndIndex = body.indexOf('"type":"TEXT_MESSAGE_END"');
+    const runErrorIndex = body.indexOf('"type":"RUN_ERROR"');
+
+    expect(textMessageStartIndex).toBeGreaterThan(-1);
+    expect(textMessageEndIndex).toBeGreaterThan(textMessageStartIndex);
+    expect(runErrorIndex).toBeGreaterThan(textMessageEndIndex);
+  });
+
   it("includes run result metadata matching narrative action items", async () => {
     const dependencies = createDependencies();
 

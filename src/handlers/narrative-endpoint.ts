@@ -63,6 +63,18 @@ export async function handleNarrativeEndpoint(
       let failedInsightCount = 0;
       let lastInsightFailure: unknown;
       let aborted = false;
+      let terminalEmitted = false;
+      let textMessageStarted = false;
+      let textMessageEnded = false;
+
+      const emitTextMessageEndIfNeeded = (): void => {
+        if (!textMessageStarted || textMessageEnded || terminalEmitted) {
+          return;
+        }
+
+        controller.enqueue(encodeTextMessageEnd({ messageId }));
+        textMessageEnded = true;
+      };
 
       runLogger.info({ event: "narrative.run_started" }, "Started narrative run");
 
@@ -74,6 +86,7 @@ export async function handleNarrativeEndpoint(
           })
         );
         controller.enqueue(encodeTextMessageStart({ messageId }));
+        textMessageStarted = true;
 
         const authClient = dependencies.createAuthClient();
         const gmailClient = dependencies.createGmailMessagesApi(authClient);
@@ -143,14 +156,19 @@ export async function handleNarrativeEndpoint(
           })
         );
 
-        controller.enqueue(encodeTextMessageEnd({ messageId }));
-        controller.enqueue(
-          encodeRunFinished({
-            threadId: runContext.threadId,
-            runId: runContext.runId,
-            result
-          })
-        );
+        emitTextMessageEndIfNeeded();
+
+        /* c8 ignore next 3 */
+        if (!terminalEmitted) {
+          controller.enqueue(
+            encodeRunFinished({
+              threadId: runContext.threadId,
+              runId: runContext.runId,
+              result
+            })
+          );
+          terminalEmitted = true;
+        }
 
         runLogger.info(
           {
@@ -178,12 +196,17 @@ export async function handleNarrativeEndpoint(
           "Failed narrative run"
         );
 
-        controller.enqueue(
-          encodeRunError({
-            message: toErrorMessage(error),
-            code: NARRATIVE_LOG_CODES.runFailed
-          })
-        );
+        /* c8 ignore next 3 */
+        if (!terminalEmitted) {
+          emitTextMessageEndIfNeeded();
+          controller.enqueue(
+            encodeRunError({
+              message: toErrorMessage(error),
+              code: NARRATIVE_LOG_CODES.runFailed
+            })
+          );
+          terminalEmitted = true;
+        }
       } finally {
         controller.close();
       }
