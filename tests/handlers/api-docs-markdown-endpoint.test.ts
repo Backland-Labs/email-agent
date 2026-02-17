@@ -22,6 +22,7 @@ describe("handleApiDocsMarkdownEndpoint", () => {
     expect(markdown).toContain("GET /health");
     expect(markdown).toContain("POST /agent");
     expect(markdown).toContain("POST /draft-reply");
+    expect(markdown).toContain("POST /narrative");
     expect(markdown).toContain("GET /api-docs.json");
     expect(markdown).toContain("GET /api-docs.md");
   });
@@ -40,6 +41,8 @@ describe("handleApiDocsMarkdownEndpoint", () => {
 
     expect(markdown).toContain("## Schemas");
     expect(markdown).toContain("### DraftReplyRequest");
+    expect(markdown).toContain("### NarrativeRequest");
+    expect(markdown).toContain("### NarrativeRunResult");
     expect(markdown).toContain("### EmailInsight");
   });
 });

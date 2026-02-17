@@ -28,6 +28,7 @@ describe("handleApiDocsJsonEndpoint", () => {
     expect(spec.paths["/health"]).toBeDefined();
     expect(spec.paths["/agent"]).toBeDefined();
     expect(spec.paths["/draft-reply"]).toBeDefined();
+    expect(spec.paths["/narrative"]).toBeDefined();
     expect(spec.paths["/api-docs.json"]).toBeDefined();
     expect(spec.paths["/api-docs.md"]).toBeDefined();
   });
@@ -43,5 +44,7 @@ describe("handleApiDocsJsonEndpoint", () => {
     expect(spec.components?.schemas?.["DraftReplyRunResult"]).toBeDefined();
     expect(spec.components?.schemas?.["EmailInsight"]).toBeDefined();
     expect(spec.components?.schemas?.["EmailMetadata"]).toBeDefined();
+    expect(spec.components?.schemas?.["NarrativeRequest"]).toBeDefined();
+    expect(spec.components?.schemas?.["NarrativeRunResult"]).toBeDefined();
   });
 });

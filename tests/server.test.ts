@@ -8,6 +8,9 @@ function createHandlers(): ServerRouteHandlers {
     handleDraftReplyEndpoint: vi.fn(() =>
       Promise.resolve(new Response("draft-reply", { status: 200 }))
     ),
+    handleNarrativeEndpoint: vi.fn(() =>
+      Promise.resolve(new Response("narrative", { status: 200 }))
+    ),
     handleHealthEndpoint: vi.fn(() => Response.json({ status: "ok" }, { status: 200 })),
     handleApiDocsJsonEndpoint: vi.fn(() => Response.json({ openapi: "3.0.0" }, { status: 200 })),
     handleApiDocsMarkdownEndpoint: vi.fn(() => new Response("# API Docs", { status: 200 }))
@@ -62,6 +65,22 @@ describe("server routing", () => {
     expect(await response.text()).toBe("draft-reply");
   });
 
+  it("dispatches POST /narrative to narrative handler", async () => {
+    const handlers = createHandlers();
+    const fetchHandler = createServerFetchHandler(handlers);
+
+    const response = await fetchHandler(
+      new Request("http://localhost:3001/narrative", {
+        method: "POST",
+        body: JSON.stringify({ runId: "run-1", threadId: "thread-1" })
+      })
+    );
+
+    expect(handlers.handleNarrativeEndpoint).toHaveBeenCalledTimes(1);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("narrative");
+  });
+
   it("returns 404 for unknown paths", async () => {
     const handlers = createHandlers();
     const fetchHandler = createServerFetchHandler(handlers);
@@ -110,6 +129,20 @@ describe("server routing", () => {
 
     const response = await fetchHandler(
       new Request("http://localhost:3001/draft-reply", {
+        method: "GET"
+      })
+    );
+
+    expect(response.status).toBe(405);
+    expect(await response.text()).toBe("Method Not Allowed");
+  });
+
+  it("returns 405 for non-POST /narrative requests", async () => {
+    const handlers = createHandlers();
+    const fetchHandler = createServerFetchHandler(handlers);
+
+    const response = await fetchHandler(
+      new Request("http://localhost:3001/narrative", {
         method: "GET"
       })
     );

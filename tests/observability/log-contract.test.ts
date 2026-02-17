@@ -7,6 +7,7 @@ type LogEntry = Record<string, unknown>;
 
 const REQUIRED_AGENT_RUN_FIELDS = ["event", "requestId", "runId", "threadId"];
 const REQUIRED_DRAFT_REPLY_RUN_FIELDS = ["event", "requestId", "runId", "threadId"];
+const REQUIRED_NARRATIVE_RUN_FIELDS = ["event", "requestId", "runId", "threadId"];
 const REQUIRED_GMAIL_BOUNDARY_FIELDS = ["event", "requestId", "runId", "threadId"];
 const FORBIDDEN_KEYS = [
   "subject",
@@ -77,6 +78,33 @@ describe("structured log contract", () => {
       "code",
       "err"
     ]);
+    assertEntriesHaveFields(entries, "narrative.run_started", REQUIRED_NARRATIVE_RUN_FIELDS);
+    assertEntriesHaveFields(entries, "narrative.run_completed", [
+      ...REQUIRED_NARRATIVE_RUN_FIELDS,
+      "durationMs",
+      "unreadCount",
+      "analyzedCount",
+      "actionItemCount",
+      "failedInsightCount",
+      "aborted"
+    ]);
+    assertEntriesHaveFields(entries, "narrative.run_failed", [
+      ...REQUIRED_NARRATIVE_RUN_FIELDS,
+      "durationMs",
+      "unreadCount",
+      "analyzedCount",
+      "failedInsightCount",
+      "code",
+      "err"
+    ]);
+    assertEntriesHaveFields(entries, "narrative.insights_failed", [
+      ...REQUIRED_NARRATIVE_RUN_FIELDS,
+      "code",
+      "failedInsightCount",
+      "unreadCount",
+      "analyzedCount",
+      "err"
+    ]);
     assertEntriesHaveFields(entries, "draft_reply.context_degraded", [
       ...REQUIRED_DRAFT_REPLY_RUN_FIELDS,
       "code",
@@ -105,14 +133,23 @@ describe("structured log contract", () => {
     const gmailFailedEntry = getFirstEntry(entries, "gmail.fetch_failed");
     const draftRunFailedEntry = getFirstEntry(entries, "draft_reply.run_failed");
     const draftContextDegradedEntry = getFirstEntry(entries, "draft_reply.context_degraded");
+    const narrativeRunFailedEntry = getFirstEntry(entries, "narrative.run_failed");
+    const narrativeInsightsFailedEntry = getFirstEntry(entries, "narrative.insights_failed");
+    const narrativeAbortedEntry = entries.find(
+      (entry) => entry.event === "narrative.run_completed" && entry.aborted === true
+    );
 
     expect(runFailedEntry.code).toBe("run_failed");
     expect(gmailFailedEntry.code).toBe("gmail_fetch_failed");
     expect(draftRunFailedEntry.code).toBe("invalid_request");
     expect(draftContextDegradedEntry.code).toBe("context_degraded");
+    expect(narrativeRunFailedEntry.code).toBe("run_failed");
+    expect(narrativeInsightsFailedEntry.code).toBe("insight_extract_failed");
+    expect(narrativeAbortedEntry).toBeDefined();
     expect(hasKey(runFailedEntry, "stack")).toBe(true);
     expect(hasKey(gmailFailedEntry, "stack")).toBe(true);
     expect(hasKey(draftRunFailedEntry, "stack")).toBe(true);
+    expect(hasKey(narrativeRunFailedEntry, "stack")).toBe(true);
 
     const runIds = collectRunIds(entries);
 
@@ -123,7 +160,7 @@ describe("structured log contract", () => {
     }
 
     assertNoForbiddenKeys(entries, FORBIDDEN_KEYS);
-  }, 12000);
+  }, 15_000);
 });
 
 function parseJsonLogLines(stdout: string): LogEntry[] {
@@ -159,7 +196,10 @@ function getFirstEntry(entries: LogEntry[], eventName: string): LogEntry {
 function collectRunIds(entries: LogEntry[]): string[] {
   const runIds = entries
     .filter(
-      (entry) => entry.event === "agent.run_started" || entry.event === "draft_reply.run_started"
+      (entry) =>
+        entry.event === "agent.run_started" ||
+        entry.event === "draft_reply.run_started" ||
+        entry.event === "narrative.run_started"
     )
     .map((entry) => entry.runId)
     .filter((runId): runId is string => typeof runId === "string" && runId.length > 0);
