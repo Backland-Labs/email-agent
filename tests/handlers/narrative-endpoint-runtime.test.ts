@@ -20,10 +20,19 @@ import {
 } from "../../src/handlers/narrative-endpoint-runtime.js";
 
 describe("narrative runtime helpers", () => {
+  function toValidEmailId(seed: string): string {
+    const normalized = seed.toLowerCase().replace(/[^a-z0-9]/gu, "");
+    const suffix = (normalized.length > 0 ? normalized : "x").padEnd(10, "0").slice(0, 10);
+
+    return `17ce8a2b6f3d${suffix}`;
+  }
+
   function createTestEmail(id: string) {
+    const emailId = toValidEmailId(id);
+
     return createEmailMetadata({
-      id,
-      threadId: "thread-1",
+      id: emailId,
+      threadId: `thread-${emailId}`,
       subject: "Test",
       from: "Alice <alice@example.com>",
       to: "you@example.com",
@@ -95,7 +104,7 @@ describe("narrative runtime helpers", () => {
     const nowMs = Date.parse("2026-02-16T12:00:00.000Z");
 
     const includedAtStart = createEmailMetadata({
-      id: "start",
+      id: toValidEmailId("start"),
       threadId: "thread-start",
       subject: "Start",
       from: "sender@example.com",
@@ -105,7 +114,7 @@ describe("narrative runtime helpers", () => {
       bodyText: "Body"
     });
     const includedAtEnd = createEmailMetadata({
-      id: "end",
+      id: toValidEmailId("end"),
       threadId: "thread-end",
       subject: "End",
       from: "sender@example.com",
@@ -115,7 +124,7 @@ describe("narrative runtime helpers", () => {
       bodyText: "Body"
     });
     const excludedBeforeStart = createEmailMetadata({
-      id: "before",
+      id: toValidEmailId("before"),
       threadId: "thread-before",
       subject: "Before",
       from: "sender@example.com",
@@ -125,7 +134,7 @@ describe("narrative runtime helpers", () => {
       bodyText: "Body"
     });
     const excludedInvalidDate = createEmailMetadata({
-      id: "invalid-date",
+      id: toValidEmailId("invalid-date"),
       threadId: "thread-invalid-date",
       subject: "Invalid",
       from: "sender@example.com",
@@ -140,7 +149,10 @@ describe("narrative runtime helpers", () => {
       nowMs
     );
 
-    expect(filtered.map((email) => email.id)).toEqual(["start", "end"]);
+    expect(filtered.map((email) => email.id)).toEqual([
+      toValidEmailId("start"),
+      toValidEmailId("end")
+    ]);
   });
 
   it("analyzeEmails respects abort signals and continues after failures", async () => {
@@ -160,7 +172,7 @@ describe("narrative runtime helpers", () => {
     });
 
     expect(results).toHaveLength(1);
-    expect(results.at(0)?.email.id).toBe("b");
+    expect(results.at(0)?.email.id).toBe(toValidEmailId("b"));
     expect(results.at(0)?.insight.urgency).toBe("fyi");
   });
 
@@ -212,7 +224,7 @@ describe("narrative runtime helpers", () => {
     const insights: NarrativeAnalysisResult[] = [
       {
         email: createEmailMetadata({
-          id: "b",
+          id: toValidEmailId("b"),
           threadId: "thread-1",
           subject: "B",
           from: "a@example.com",
@@ -225,7 +237,7 @@ describe("narrative runtime helpers", () => {
       },
       {
         email: createEmailMetadata({
-          id: "a",
+          id: toValidEmailId("a"),
           threadId: "thread-1",
           subject: "A",
           from: "b@example.com",
@@ -274,7 +286,7 @@ describe("narrative runtime helpers", () => {
       results: [
         {
           email: createEmailMetadata({
-            id: "raw",
+            id: toValidEmailId("raw"),
             threadId: "thread-raw",
             subject: "Raw",
             from: "<invalid-from>",

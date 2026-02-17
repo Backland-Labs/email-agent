@@ -37,13 +37,22 @@ function createRequest(init?: RequestInit): Request {
   return new Request("http://localhost:3001/narrative", { method: "POST", ...init });
 }
 
+function toValidEmailId(seed: string): string {
+  const normalized = seed.toLowerCase().replace(/[^a-z0-9]/gu, "");
+  const suffix = (normalized.length > 0 ? normalized : "x").padEnd(10, "0").slice(0, 10);
+
+  return `17ce8a2b6f3d${suffix}`;
+}
+
 function createTestEmail(
   id: string,
   overrides: Partial<{ subject: string; from: string; bodyText: string }> = {}
 ) {
+  const emailId = toValidEmailId(id);
+
   return createEmailMetadata({
-    id,
-    threadId: `thread-${id}`,
+    id: emailId,
+    threadId: `thread-${emailId}`,
     subject: overrides.subject ?? "Test",
     from: overrides.from ?? "sender@example.com",
     to: "you@example.com",

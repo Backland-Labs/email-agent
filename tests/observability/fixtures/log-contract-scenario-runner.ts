@@ -28,17 +28,19 @@ export async function runLogContractScenarios(): Promise<void> {
 }
 
 async function runAgentSuccessScenario(): Promise<void> {
+  const validMessageId = "17ce8a2b6f3d40a9e1";
+
   const dependencies = createDependencies({
     list: () =>
       Promise.resolve({
         data: {
-          messages: [{ id: "email-1" }]
+          messages: [{ id: validMessageId }]
         }
       }),
     get: () =>
       Promise.resolve({
         data: {
-          id: "email-1",
+          id: validMessageId,
           threadId: "thread-email-1",
           snippet: "Short snippet",
           payload: {

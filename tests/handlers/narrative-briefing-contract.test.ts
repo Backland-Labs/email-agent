@@ -9,8 +9,11 @@ import {
 } from "../../src/handlers/narrative-endpoint-runtime.js";
 
 function createTestEmail(id: string) {
+  const normalized = id.toLowerCase().replace(/[^a-z0-9]/gu, "");
+  const suffix = (normalized.length > 0 ? normalized : "x").padEnd(10, "0").slice(0, 10);
+
   return createEmailMetadata({
-    id,
+    id: `17ce8a2b6f3d${suffix}`,
     threadId: "thread-1",
     subject: "Test",
     from: "Alice <alice@example.com>",

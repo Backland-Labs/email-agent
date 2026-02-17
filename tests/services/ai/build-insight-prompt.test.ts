@@ -10,7 +10,8 @@ const emailIds = {
   email4: "17ce8a2b6f3d40aa1",
   email5: "17ce8a2b6f3d40aa2",
   email6: "17ce8a2b6f3d40aa3",
-  email7: "17ce8a2b6f3d40aa4"
+  email7: "17ce8a2b6f3d40aa4",
+  email8: "17ce8a2b6f3d40aa5"
 } as const;
 
 describe("buildInsightPrompt", () => {
@@ -170,7 +171,7 @@ describe("buildInsightPrompt", () => {
 
   it("includes explicit high-signal and anti-vague guidance", () => {
     const email = createEmailMetadata({
-      id: "email-8",
+      id: emailIds.email8,
       threadId: "thread-8",
       subject: "Signal check",
       from: "sender@example.com",
