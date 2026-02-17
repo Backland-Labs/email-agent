@@ -167,4 +167,24 @@ describe("buildInsightPrompt", () => {
     expect(prompt.system).toContain('"action"');
     expect(prompt.system).toContain("null");
   });
+
+  it("includes explicit high-signal and anti-vague guidance", () => {
+    const email = createEmailMetadata({
+      id: "email-8",
+      threadId: "thread-8",
+      subject: "Signal check",
+      from: "sender@example.com",
+      to: "recipient@example.com",
+      date: "Sat, 14 Feb 2026 11:07:00 +0000",
+      snippet: "Signal content",
+      bodyText: "Check signal rubric"
+    });
+
+    const prompt = buildInsightPrompt(email);
+
+    expect(prompt.system).toContain("Signal bar");
+    expect(prompt.system).toContain("what changed, why it matters");
+    expect(prompt.system).toContain("Never invent facts");
+    expect(prompt.system).toContain("avoid generic actions");
+  });
 });
