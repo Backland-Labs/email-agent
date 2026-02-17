@@ -63,12 +63,11 @@ export async function handleNarrativeEndpoint(
       let failedInsightCount = 0;
       let lastInsightFailure: unknown;
       let aborted = false;
-      let terminalEmitted = false;
       let textMessageStarted = false;
       let textMessageEnded = false;
 
       const emitTextMessageEndIfNeeded = (): void => {
-        if (!textMessageStarted || textMessageEnded || terminalEmitted) {
+        if (!textMessageStarted || textMessageEnded) {
           return;
         }
 
@@ -157,18 +156,13 @@ export async function handleNarrativeEndpoint(
         );
 
         emitTextMessageEndIfNeeded();
-
-        /* c8 ignore next 3 */
-        if (!terminalEmitted) {
-          controller.enqueue(
-            encodeRunFinished({
-              threadId: runContext.threadId,
-              runId: runContext.runId,
-              result
-            })
-          );
-          terminalEmitted = true;
-        }
+        controller.enqueue(
+          encodeRunFinished({
+            threadId: runContext.threadId,
+            runId: runContext.runId,
+            result
+          })
+        );
 
         runLogger.info(
           {
@@ -196,17 +190,13 @@ export async function handleNarrativeEndpoint(
           "Failed narrative run"
         );
 
-        /* c8 ignore next 3 */
-        if (!terminalEmitted) {
-          emitTextMessageEndIfNeeded();
-          controller.enqueue(
-            encodeRunError({
-              message: toErrorMessage(error),
-              code: NARRATIVE_LOG_CODES.runFailed
-            })
-          );
-          terminalEmitted = true;
-        }
+        emitTextMessageEndIfNeeded();
+        controller.enqueue(
+          encodeRunError({
+            message: toErrorMessage(error),
+            code: NARRATIVE_LOG_CODES.runFailed
+          })
+        );
       } finally {
         controller.close();
       }
