@@ -155,9 +155,7 @@ export async function handleNarrativeEndpoint(
         }
 
         const narrative = buildNarrative({
-          results: sortedResults,
-          unreadCount,
-          actionItems
+          results: sortedResults
         });
 
         const result = createNarrativeRunResult({

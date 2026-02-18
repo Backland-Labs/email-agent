@@ -1,18 +1,8 @@
 import { compareByCategory, type EmailInsight } from "../domain/email-insight.js";
 import type { EmailMetadata } from "../domain/email-metadata.js";
 import { parseNarrativeRequest, narrativeRequestSchema } from "../domain/narrative-request.js";
-import {
-  buildNarrative,
-  extractActionItems,
-  formatActionItemsSection,
-  formatUrgencySection
-} from "./narrative-briefing.js";
-import {
-  LOOKBACK_HOURS,
-  LOOKBACK_WINDOW_MS,
-  MAX_ACTION_ITEMS,
-  MAX_BRIEFING_BULLETS
-} from "./narrative-constants.js";
+import { buildNarrative, extractActionItems, formatUrgencySection } from "./narrative-briefing.js";
+import { LOOKBACK_HOURS, LOOKBACK_WINDOW_MS, MAX_ACTION_ITEMS } from "./narrative-constants.js";
 import {
   buildLookbackQuery,
   filterEmailsInLookbackWindow,
@@ -27,12 +17,10 @@ export {
   LOOKBACK_HOURS,
   LOOKBACK_WINDOW_MS,
   MAX_ACTION_ITEMS,
-  MAX_BRIEFING_BULLETS,
   buildLookbackQuery,
   buildNarrative,
   extractActionItems,
   filterEmailsInLookbackWindow,
-  formatActionItemsSection,
   formatUrgencySection,
   resolveLookbackWindow,
   type LookbackWindow

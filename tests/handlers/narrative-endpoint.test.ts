@@ -111,9 +111,7 @@ describe("handleNarrativeEndpoint", () => {
     expect(body.indexOf('"type":"RUN_FINISHED"')).toBeGreaterThan(
       body.indexOf('"type":"TEXT_MESSAGE_END"')
     );
-    expect(body).toContain("# 48h Inbox Narrative");
     expect(body).toContain("Action Required");
-    expect(body).toContain("## Briefing");
   });
 
   it("uses default IDs when request body is missing", async () => {
@@ -272,22 +270,18 @@ describe("handleNarrativeEndpoint", () => {
     expect(actionItems).toEqual(["Review the renewal terms."]);
   });
 
-  it("buildNarrative keeps a concise briefing and explicit action section", () => {
+  it("buildNarrative includes urgency sections without briefing or action items", () => {
     const narrative = buildNarrative({
       results: [
         {
           email: createTestEmail("business"),
           insight: createInsight("business", "action_required", "Reply to client")
         }
-      ],
-      unreadCount: 4,
-      actionItems: ["Reply to client"]
+      ]
     });
 
-    expect(narrative).toContain("## Briefing");
     expect(narrative).toContain("## Action Required");
-    expect(narrative).toContain("## Action Items");
-    expect(narrative).toContain("1 immediate action item");
+    expect(narrative).not.toContain("# 48h Inbox Narrative");
   });
 
   it("sorts insight sections by urgency and builds action items", async () => {
@@ -311,17 +305,15 @@ describe("handleNarrativeEndpoint", () => {
     const response = await handleNarrativeEndpoint(createRequest(), dependencies);
     const body = await response.text();
 
-    const actionRequiredIndex = body.indexOf("## Action Required");
     const updatesIndex = body.indexOf("## Updates");
+    const actionRequiredIndex = body.indexOf("## Action Required");
     const backgroundIndex = body.indexOf("## Background");
-    const actionItemsIndex = body.indexOf("## Action Items");
 
-    expect(actionRequiredIndex).toBeGreaterThan(-1);
     expect(updatesIndex).toBeGreaterThan(-1);
+    expect(actionRequiredIndex).toBeGreaterThan(-1);
     expect(backgroundIndex).toBeGreaterThan(-1);
-    expect(actionItemsIndex).toBeGreaterThan(updatesIndex);
-    expect(actionRequiredIndex).toBeLessThan(updatesIndex);
-    expect(updatesIndex).toBeLessThan(backgroundIndex);
+    expect(updatesIndex).toBeLessThan(actionRequiredIndex);
+    expect(actionRequiredIndex).toBeLessThan(backgroundIndex);
     expect(body).toContain("Renew license and check invoice");
     expect(body).toContain("Review profile");
   });

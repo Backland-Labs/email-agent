@@ -257,7 +257,7 @@ describe("narrative runtime helpers", () => {
   });
 
   it("builds readable narrative for empty and non-empty insights", () => {
-    const noResultsNarrative = buildNarrative({ results: [], unreadCount: 2, actionItems: [] });
+    const noResultsNarrative = buildNarrative({ results: [] });
 
     expect(noResultsNarrative).toContain("No high-signal updates were found in the last 48 hours.");
 
@@ -272,9 +272,7 @@ describe("narrative runtime helpers", () => {
             action: "Draft a response"
           }
         }
-      ],
-      unreadCount: 1,
-      actionItems: ["Draft a response"]
+      ]
     });
 
     expect(withResults).toContain("## Updates");
@@ -302,23 +300,16 @@ describe("narrative runtime helpers", () => {
             action: null
           }
         }
-      ],
-      unreadCount: 1,
-      actionItems: []
+      ]
     });
 
     expect(narrative).toContain("- <invalid-from>: Sender fallback check");
   });
 
-  it("uses deterministic fallback text for no-results and no-action-items cases", () => {
-    const noResults = buildNarrative({
-      results: [],
-      unreadCount: 0,
-      actionItems: []
-    });
+  it("uses deterministic fallback text for no-results case", () => {
+    const noResults = buildNarrative({ results: [] });
 
     expect(noResults).toContain("No high-signal updates were found in the last 48 hours.");
-    expect(noResults).toContain("- No immediate action items.");
   });
 
   it("returns Unknown error message for non-error failure values", () => {

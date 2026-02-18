@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { createEmailMetadata } from "../../src/domain/email-metadata.js";
 import {
-  MAX_BRIEFING_BULLETS,
   buildNarrative,
   type NarrativeAnalysisResult
 } from "../../src/handlers/narrative-endpoint-runtime.js";
@@ -24,7 +23,7 @@ function createTestEmail(id: string) {
 }
 
 describe("narrative briefing contract", () => {
-  it("enforces briefing bullet limit and no-exclamation tone", () => {
+  it("enforces no-exclamation tone", () => {
     const results: NarrativeAnalysisResult[] = [
       {
         email: createTestEmail("a"),
@@ -47,17 +46,8 @@ describe("narrative briefing contract", () => {
       }
     ];
 
-    const narrative = buildNarrative({
-      results,
-      unreadCount: 2,
-      actionItems: ["Follow up with finance right away"]
-    });
-    const briefingSection = narrative.match(/## Briefing\n([\s\S]*?)\n\n/u)?.[1] ?? "";
-    const briefingBulletCount = briefingSection
-      .split("\n")
-      .filter((line) => line.startsWith("- ")).length;
+    const narrative = buildNarrative({ results });
 
-    expect(briefingBulletCount).toBeLessThanOrEqual(MAX_BRIEFING_BULLETS);
     expect(narrative).not.toContain("!");
   });
 });

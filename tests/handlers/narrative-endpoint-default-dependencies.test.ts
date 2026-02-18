@@ -93,7 +93,7 @@ describe("handleNarrativeEndpoint with default dependencies", () => {
     const body = await response.text();
 
     expect(vi.mocked(extractEmailInsight)).toHaveBeenCalledWith("claude-sonnet-4-20250514", email);
-    expect(body).toContain("# 48h Inbox Narrative");
+    expect(body).toContain("Updates");
   });
 
   it("uses env model and wires Gmail list/get through fetchUnreadEmails", async () => {
