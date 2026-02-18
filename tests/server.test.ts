@@ -34,6 +34,26 @@ describe("server routing", () => {
     expect(await response.text()).toBe("agent");
   });
 
+  it("rethrows route handler errors", async () => {
+    const handlers = createHandlers();
+    const routeError = new Error("agent failed");
+
+    handlers.handleAgentEndpoint = vi.fn(() => Promise.reject(routeError));
+
+    const fetchHandler = createServerFetchHandler(handlers);
+
+    await expect(
+      fetchHandler(
+        new Request("http://localhost:3001/agent", {
+          method: "POST",
+          body: JSON.stringify({ test: true })
+        })
+      )
+    ).rejects.toThrow("agent failed");
+
+    expect(handlers.handleAgentEndpoint).toHaveBeenCalledTimes(1);
+  });
+
   it("dispatches GET /health to health handler", async () => {
     const handlers = createHandlers();
     const fetchHandler = createServerFetchHandler(handlers);
