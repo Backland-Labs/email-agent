@@ -5,7 +5,6 @@ import {
   handleNarrativeEndpoint,
   type NarrativeEndpointDependencies
 } from "../../src/handlers/narrative-endpoint.js";
-import { acquireReadableStreamMutationLock } from "./readable-stream-mutation-lock.js";
 
 type Deferred<T> = {
   promise: Promise<T>;
@@ -17,60 +16,40 @@ type FetchUnreadResult = Awaited<ReturnType<NarrativeEndpointDependencies["fetch
 
 type FailingReadableStreamInput = {
   shouldFail: (enqueueIndex: number) => Error | undefined;
-  shouldFailClose?: boolean;
 };
 
-type FailingReadableStreamHandle = {
-  restore: () => void;
-};
+type ReadableStreamFactory = (source: unknown) => ReadableStream<Uint8Array>;
 
-function installFailingReadableStream({
-  shouldFail,
-  shouldFailClose = false
-}: FailingReadableStreamInput): FailingReadableStreamHandle {
-  const OriginalReadableStream = globalThis.ReadableStream;
+function createFailingReadableStreamFactory({
+  shouldFail
+}: FailingReadableStreamInput): ReadableStreamFactory {
+  return (source) => {
+    let enqueueIndex = 0;
 
-  class FailingReadableStream extends OriginalReadableStream<Uint8Array> {
-    public constructor(source: {
-      start: (controller: {
-        enqueue: (data: Uint8Array) => void;
-        close: () => void;
-      }) => Promise<void> | void;
-    }) {
-      let enqueueIndex = 0;
-
-      super({
-        start: (controller) =>
-          source.start({
-            enqueue: (data) => {
-              enqueueIndex += 1;
-              const error = shouldFail(enqueueIndex);
-              if (error) {
-                throw error;
-              }
-
-              controller.enqueue(data);
-            },
-            close: () => {
-              if (shouldFailClose) {
-                throw new Error("Controller is already closed");
-              }
-
-              controller.close();
+    return new ReadableStream<Uint8Array>({
+      start: (controller) =>
+        (
+          source as {
+            start: (controller: {
+              enqueue: (data: Uint8Array) => void;
+              close: () => void;
+            }) => Promise<void> | void;
+          }
+        ).start({
+          enqueue: (data) => {
+            enqueueIndex += 1;
+            const error = shouldFail(enqueueIndex);
+            if (error) {
+              throw error;
             }
-          })
-      });
-    }
-  }
 
-  (globalThis as { ReadableStream: typeof ReadableStream }).ReadableStream =
-    FailingReadableStream as unknown as typeof ReadableStream;
-
-  return {
-    restore: () => {
-      (globalThis as { ReadableStream: typeof ReadableStream }).ReadableStream =
-        OriginalReadableStream;
-    }
+            controller.enqueue(data);
+          },
+          close: () => {
+            controller.close();
+          }
+        })
+    });
   };
 }
 
@@ -132,24 +111,18 @@ async function flushAsyncWork(): Promise<void> {
 describe("narrative endpoint stream guards", () => {
   it("emits RUN_ERROR when enqueue fails with a non-closed error", async () => {
     const dependencies = createDependencies();
-    const releaseLock = await acquireReadableStreamMutationLock();
-    const { restore } = installFailingReadableStream({
+    dependencies.createReadableStream = createFailingReadableStreamFactory({
       shouldFail: (enqueueIndex) =>
         enqueueIndex === 2 ? new Error("Storage unavailable") : undefined
     });
 
-    try {
-      const response = await handleNarrativeEndpoint(createRequest(), dependencies);
-      const body = await response.text();
+    const response = await handleNarrativeEndpoint(createRequest(), dependencies);
+    const body = await response.text();
 
-      expect(body).toContain('"type":"RUN_STARTED"');
-      expect(body).toContain('"type":"RUN_ERROR"');
-      expect(body).toContain("Storage unavailable");
-      expect(body).not.toContain('"type":"RUN_FINISHED"');
-    } finally {
-      restore();
-      releaseLock();
-    }
+    expect(body).toContain('"type":"RUN_STARTED"');
+    expect(body).toContain('"type":"RUN_ERROR"');
+    expect(body).toContain("Storage unavailable");
+    expect(body).not.toContain('"type":"RUN_FINISHED"');
   });
 
   it("does not raise unhandled rejections after client disconnect mid-run", async () => {
@@ -162,7 +135,6 @@ describe("narrative endpoint stream guards", () => {
 
     dependencies.fetchUnreadEmails = vi.fn(() => pendingEmails.promise);
     process.on("unhandledRejection", onUnhandledRejection);
-    const releaseLock = await acquireReadableStreamMutationLock();
 
     try {
       const response = await handleNarrativeEndpoint(createRequest(), dependencies);
@@ -179,7 +151,6 @@ describe("narrative endpoint stream guards", () => {
       expect(dependencies.fetchUnreadEmails).toHaveBeenCalledTimes(1);
       expect(unhandledRejections).toEqual([]);
     } finally {
-      releaseLock();
       process.off("unhandledRejection", onUnhandledRejection);
     }
   });

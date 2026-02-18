@@ -24,7 +24,9 @@ import { createNarrativeRunResult } from "../domain/narrative-run-result.js";
 
 export type NarrativeEndpointDependencies = ReturnType<
   typeof createNarrativeEndpointDefaultDependencies
->;
+> & {
+  createReadableStream?: (source: unknown) => ReadableStream<Uint8Array>;
+};
 
 const NARRATIVE_LOG_CODES = {
   insightExtractFailed: "insight_extract_failed",
@@ -55,8 +57,12 @@ export async function handleNarrativeEndpoint(
   });
   const messageId = dependencies.createMessageId();
 
-  const stream = new ReadableStream<Uint8Array>({
-    start: async (controller) => {
+  const createReadableStream =
+    dependencies.createReadableStream ??
+    ((source: unknown) => new ReadableStream<Uint8Array>(source as UnderlyingSource<Uint8Array>));
+
+  const stream = createReadableStream({
+    start: async (controller: { enqueue: (data: Uint8Array) => void; close: () => void }) => {
       const runStartedAt = Date.now();
       let unreadCount = 0;
       let analyzedCount = 0;
