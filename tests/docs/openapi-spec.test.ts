@@ -34,6 +34,7 @@ describe("generateOpenApiSpec", () => {
     expect(spec.paths["/health"]).toBeDefined();
     expect(spec.paths["/agent"]).toBeDefined();
     expect(spec.paths["/draft-reply"]).toBeDefined();
+    expect(spec.paths["/narrative"]).toBeDefined();
     expect(spec.paths["/api-docs.json"]).toBeDefined();
     expect(spec.paths["/api-docs.md"]).toBeDefined();
   });
@@ -49,6 +50,8 @@ describe("generateOpenApiSpec", () => {
     expect(spec.components.schemas["DraftReplyRunResult"]).toBeDefined();
     expect(spec.components.schemas["EmailInsight"]).toBeDefined();
     expect(spec.components.schemas["EmailMetadata"]).toBeDefined();
+    expect(spec.components.schemas["NarrativeRequest"]).toBeDefined();
+    expect(spec.components.schemas["NarrativeRunResult"]).toBeDefined();
   });
 
   it("includes GET method for health endpoint", () => {
@@ -88,6 +91,25 @@ describe("generateOpenApiSpec", () => {
     expect(spec.paths["/draft-reply"].post.summary).toBe("Draft a reply to an email");
     expect(spec.paths["/draft-reply"].post.requestBody?.required).toBe(true);
     expect(spec.paths["/draft-reply"].post.responses).toBeDefined();
+  });
+
+  it("includes POST method for narrative endpoint with optional request body", () => {
+    const spec = generateOpenApiSpec() as {
+      paths: {
+        "/narrative": {
+          post: {
+            summary: string;
+            requestBody?: { required: boolean };
+            responses: Record<string, unknown>;
+          };
+        };
+      };
+    };
+
+    expect(spec.paths["/narrative"].post).toBeDefined();
+    expect(spec.paths["/narrative"].post.summary).toBe("Summarize unread inbox in markdown");
+    expect(spec.paths["/narrative"].post.responses).toBeDefined();
+    expect(spec.paths["/narrative"].post.requestBody?.required).toBe(false);
   });
 
   it("includes GET methods for api-docs endpoints", () => {

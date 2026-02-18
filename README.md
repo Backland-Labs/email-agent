@@ -83,6 +83,7 @@ Default port is `3001` (override with `PORT`).
 
 - `GET /health` -> `{ "status": "ok" }`
 - `POST /agent` -> AG-UI SSE stream (`RUN_STARTED`, text events, `RUN_FINISHED`); no request body required
+- `POST /narrative` -> AG-UI SSE stream with a concise 48-hour inbox brief and action items; request body is optional (`runId`, `threadId`) and malformed JSON safely falls back to defaults
 - `POST /draft-reply` -> AG-UI SSE stream that drafts a reply for one email; requires JSON body:
 
 ```json
@@ -95,6 +96,8 @@ Default port is `3001` (override with `PORT`).
 ```
 
 `/draft-reply` persists the generated reply as a Gmail draft in the same thread and returns `gmailDraftId` in `RUN_FINISHED.result`. It does not send email.
+
+`/narrative` summarizes unread inbox messages in a rolling 48-hour window, emits one terminal SSE event per run (`RUN_FINISHED` for success/partial success, `RUN_ERROR` for hard failures), and returns `timeframeHours` plus `actionItemCount` in `RUN_FINISHED.result`.
 
 ### API Documentation
 

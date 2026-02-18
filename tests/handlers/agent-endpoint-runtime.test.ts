@@ -7,6 +7,7 @@ import {
   type AgentEndpointDependencies
 } from "../../src/handlers/agent-endpoint.js";
 import { createAgentEndpointStream } from "../../src/handlers/agent-endpoint-runtime.js";
+import { acquireReadableStreamMutationLock } from "./readable-stream-mutation-lock.js";
 
 function createDependencies(): AgentEndpointDependencies {
   return {
@@ -62,6 +63,7 @@ describe("agent endpoint runtime behavior", () => {
       streamStartedResolve = resolve;
     });
 
+    const releaseLock = await acquireReadableStreamMutationLock();
     const originalReadableStream = globalThis.ReadableStream;
 
     const FakeReadableStream = function (source: {
@@ -117,6 +119,7 @@ describe("agent endpoint runtime behavior", () => {
       );
     } finally {
       (globalThis as { ReadableStream: unknown }).ReadableStream = originalReadableStream;
+      releaseLock();
     }
   });
 

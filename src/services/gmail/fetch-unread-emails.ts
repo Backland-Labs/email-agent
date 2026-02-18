@@ -47,6 +47,7 @@ export type FetchUnreadEmailsOptions = {
   requestId?: string;
   runId?: string;
   threadId?: string;
+  query?: string;
 };
 
 export async function fetchUnreadEmails(
@@ -74,7 +75,7 @@ export async function fetchUnreadEmails(
   try {
     const listResponse = await gmailClient.list({
       userId: "me",
-      q: "is:unread",
+      q: options.query ?? "is:unread",
       labelIds: ["INBOX"],
       maxResults
     });

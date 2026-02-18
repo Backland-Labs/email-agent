@@ -3,6 +3,7 @@ import { handleApiDocsJsonEndpoint } from "./handlers/api-docs-json-endpoint.js"
 import { handleApiDocsMarkdownEndpoint } from "./handlers/api-docs-markdown-endpoint.js";
 import { handleDraftReplyEndpoint } from "./handlers/draft-reply-endpoint.js";
 import { handleHealthEndpoint } from "./handlers/health-endpoint.js";
+import { handleNarrativeEndpoint } from "./handlers/narrative-endpoint.js";
 
 const DEFAULT_PORT = 3001;
 const DEFAULT_IDLE_TIMEOUT_SECONDS = 120;
@@ -10,6 +11,7 @@ const DEFAULT_IDLE_TIMEOUT_SECONDS = 120;
 export type ServerRouteHandlers = {
   handleAgentEndpoint: (request: Request) => Promise<Response>;
   handleDraftReplyEndpoint: (request: Request) => Promise<Response>;
+  handleNarrativeEndpoint: (request: Request) => Promise<Response>;
   handleHealthEndpoint: () => Response;
   handleApiDocsJsonEndpoint: () => Response;
   handleApiDocsMarkdownEndpoint: () => Response;
@@ -18,6 +20,7 @@ export type ServerRouteHandlers = {
 const defaultHandlers: ServerRouteHandlers = {
   handleAgentEndpoint,
   handleDraftReplyEndpoint,
+  handleNarrativeEndpoint,
   handleHealthEndpoint,
   handleApiDocsJsonEndpoint,
   handleApiDocsMarkdownEndpoint
@@ -41,6 +44,14 @@ export function createServerFetchHandler(handlers: ServerRouteHandlers) {
       }
 
       return handlers.handleDraftReplyEndpoint(request);
+    }
+
+    if (requestUrl.pathname === "/narrative") {
+      if (request.method !== "POST") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+
+      return handlers.handleNarrativeEndpoint(request);
     }
 
     if (requestUrl.pathname === "/health") {

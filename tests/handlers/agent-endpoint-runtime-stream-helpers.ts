@@ -2,6 +2,7 @@ import { vi } from "vitest";
 
 import type { EmailInsight } from "../../src/domain/email-insight.js";
 import type { AgentEndpointDependencies } from "../../src/handlers/agent-endpoint.js";
+import { acquireReadableStreamMutationLock } from "./readable-stream-mutation-lock.js";
 
 type FakeReadableStreamInput = {
   shouldFail: (enqueueIndex: number) => Error | undefined;
@@ -14,16 +15,17 @@ type FakeReadableStreamHandle = {
   restore: () => void;
 };
 
-export function createFailingReadableStream({
+export async function createFailingReadableStream({
   shouldFail,
   shouldFailClose = false
-}: FakeReadableStreamInput): FakeReadableStreamHandle {
+}: FakeReadableStreamInput): Promise<FakeReadableStreamHandle> {
   const events: string[] = [];
   let streamStartedResolve: () => void = () => {};
   const streamStarted = new Promise<void>((resolve) => {
     streamStartedResolve = resolve;
   });
 
+  const releaseLock = await acquireReadableStreamMutationLock();
   const originalReadableStream = globalThis.ReadableStream;
 
   const FakeReadableStream = function (source: {
@@ -63,6 +65,7 @@ export function createFailingReadableStream({
     streamStarted,
     restore: () => {
       (globalThis as { ReadableStream: unknown }).ReadableStream = originalReadableStream;
+      releaseLock();
     }
   };
 }

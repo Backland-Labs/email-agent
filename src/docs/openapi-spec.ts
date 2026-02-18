@@ -5,6 +5,8 @@ import { z } from "zod";
 
 import { draftReplyRequestSchema } from "../domain/draft-reply-request.js";
 import { draftReplyRunResultSchema } from "../domain/draft-reply-result.js";
+import { narrativeRequestSchema } from "../domain/narrative-request.js";
+import { narrativeRunResultSchema } from "../domain/narrative-run-result.js";
 import { emailInsightSchema } from "../domain/email-insight.js";
 import { emailMetadataSchema } from "../domain/email-metadata.js";
 
@@ -43,6 +45,46 @@ registry.registerPath({
       description:
         "SSE stream containing AG-UI events (RUN_STARTED, text chunks, RUN_FINISHED). " +
         "Each insight includes email metadata and structured analysis.",
+      content: {
+        "text/event-stream": {
+          schema: z.object({
+            event: z.enum(["RUN_STARTED", "text", "RUN_FINISHED"]),
+            data: z.string()
+          })
+        }
+      }
+    },
+    405: {
+      description: "Method not allowed - only POST is supported"
+    }
+  }
+});
+
+// Narrative endpoint
+registry.registerPath({
+  method: "post",
+  path: "/narrative",
+  description:
+    "Summarizes unread Gmail inbox messages from a rolling 48-hour window into a concise markdown brief. " +
+    "Returns AG-UI compatible SSE events with narrative text plus action items and a structured run result.",
+  summary: "Summarize unread inbox in markdown",
+  request: {
+    body: {
+      description:
+        "Optional run metadata. Malformed or non-object JSON falls back to safe defaults for runId/threadId.",
+      content: {
+        "application/json": {
+          schema: narrativeRequestSchema
+        }
+      },
+      required: false
+    }
+  },
+  responses: {
+    200: {
+      description:
+        "SSE stream containing AG-UI events with concise narrative text and run result summary " +
+        "(timeframeHours=48 and actionItemCount).",
       content: {
         "text/event-stream": {
           schema: z.object({
@@ -138,6 +180,8 @@ registry.registerPath({
 // Register schemas as components
 registry.register("DraftReplyRequest", draftReplyRequestSchema);
 registry.register("DraftReplyRunResult", draftReplyRunResultSchema);
+registry.register("NarrativeRequest", narrativeRequestSchema);
+registry.register("NarrativeRunResult", narrativeRunResultSchema);
 registry.register("EmailInsight", emailInsightSchema);
 registry.register("EmailMetadata", emailMetadataSchema);
 

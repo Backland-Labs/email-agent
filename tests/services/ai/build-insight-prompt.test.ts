@@ -10,7 +10,8 @@ const emailIds = {
   email4: "17ce8a2b6f3d40aa1",
   email5: "17ce8a2b6f3d40aa2",
   email6: "17ce8a2b6f3d40aa3",
-  email7: "17ce8a2b6f3d40aa4"
+  email7: "17ce8a2b6f3d40aa4",
+  email8: "17ce8a2b6f3d40aa5"
 } as const;
 
 describe("buildInsightPrompt", () => {
@@ -166,5 +167,25 @@ describe("buildInsightPrompt", () => {
 
     expect(prompt.system).toContain('"action"');
     expect(prompt.system).toContain("null");
+  });
+
+  it("includes explicit high-signal and anti-vague guidance", () => {
+    const email = createEmailMetadata({
+      id: emailIds.email8,
+      threadId: "thread-8",
+      subject: "Signal check",
+      from: "sender@example.com",
+      to: "recipient@example.com",
+      date: "Sat, 14 Feb 2026 11:07:00 +0000",
+      snippet: "Signal content",
+      bodyText: "Check signal rubric"
+    });
+
+    const prompt = buildInsightPrompt(email);
+
+    expect(prompt.system).toContain("Signal bar");
+    expect(prompt.system).toContain("what changed, why it matters");
+    expect(prompt.system).toContain("Never invent facts");
+    expect(prompt.system).toContain("avoid generic actions");
   });
 });
