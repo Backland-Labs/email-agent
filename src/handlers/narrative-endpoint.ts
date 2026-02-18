@@ -66,26 +66,40 @@ export async function handleNarrativeEndpoint(
       let textMessageStarted = false;
       let textMessageEnded = false;
 
+      const safeEnqueue = (data: Uint8Array): boolean => {
+        try {
+          controller.enqueue(data);
+          return true;
+        } catch (error: unknown) {
+          if (error instanceof Error && error.message.includes("Controller is already closed")) {
+            aborted = true;
+            return false;
+          }
+
+          throw error;
+        }
+      };
+
       const emitTextMessageEndIfNeeded = (): void => {
         if (!textMessageStarted || textMessageEnded) {
           return;
         }
 
-        controller.enqueue(encodeTextMessageEnd({ messageId }));
-        textMessageEnded = true;
+        if (safeEnqueue(encodeTextMessageEnd({ messageId }))) {
+          textMessageEnded = true;
+        }
       };
 
       runLogger.info({ event: "narrative.run_started" }, "Started narrative run");
 
       try {
-        controller.enqueue(
+        safeEnqueue(
           encodeRunStarted({
             threadId: runContext.threadId,
             runId: runContext.runId
           })
         );
-        controller.enqueue(encodeTextMessageStart({ messageId }));
-        textMessageStarted = true;
+        textMessageStarted = safeEnqueue(encodeTextMessageStart({ messageId }));
 
         const authClient = dependencies.createAuthClient();
         const gmailClient = dependencies.createGmailMessagesApi(authClient);
@@ -148,7 +162,7 @@ export async function handleNarrativeEndpoint(
           narrative
         });
 
-        controller.enqueue(
+        safeEnqueue(
           encodeTextMessageContent({
             messageId,
             delta: result.narrative
@@ -156,7 +170,7 @@ export async function handleNarrativeEndpoint(
         );
 
         emitTextMessageEndIfNeeded();
-        controller.enqueue(
+        safeEnqueue(
           encodeRunFinished({
             threadId: runContext.threadId,
             runId: runContext.runId,
@@ -191,14 +205,18 @@ export async function handleNarrativeEndpoint(
         );
 
         emitTextMessageEndIfNeeded();
-        controller.enqueue(
+        safeEnqueue(
           encodeRunError({
             message: toErrorMessage(error),
             code: NARRATIVE_LOG_CODES.runFailed
           })
         );
       } finally {
-        controller.close();
+        try {
+          controller.close();
+        } catch {
+          // Controller may already be closed if the client disconnected
+        }
       }
     }
   });
