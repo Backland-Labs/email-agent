@@ -11,8 +11,7 @@ import {
   LOOKBACK_HOURS,
   LOOKBACK_WINDOW_MS,
   MAX_ACTION_ITEMS,
-  MAX_BRIEFING_BULLETS,
-  MAX_NARRATIVE_WORDS_BEFORE_ACTION_ITEMS
+  MAX_BRIEFING_BULLETS
 } from "./narrative-constants.js";
 import {
   buildLookbackQuery,
@@ -29,7 +28,6 @@ export {
   LOOKBACK_WINDOW_MS,
   MAX_ACTION_ITEMS,
   MAX_BRIEFING_BULLETS,
-  MAX_NARRATIVE_WORDS_BEFORE_ACTION_ITEMS,
   buildLookbackQuery,
   buildNarrative,
   extractActionItems,

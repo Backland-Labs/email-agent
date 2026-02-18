@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { createEmailMetadata } from "../../src/domain/email-metadata.js";
 import {
   MAX_BRIEFING_BULLETS,
-  MAX_NARRATIVE_WORDS_BEFORE_ACTION_ITEMS,
   buildNarrative,
   type NarrativeAnalysisResult
 } from "../../src/handlers/narrative-endpoint-runtime.js";
@@ -25,7 +24,7 @@ function createTestEmail(id: string) {
 }
 
 describe("narrative briefing contract", () => {
-  it("enforces concise narrative contract and no-exclamation tone", () => {
+  it("enforces briefing bullet limit and no-exclamation tone", () => {
     const results: NarrativeAnalysisResult[] = [
       {
         email: createTestEmail("a"),
@@ -53,26 +52,12 @@ describe("narrative briefing contract", () => {
       unreadCount: 2,
       actionItems: ["Follow up with finance right away"]
     });
-    const textBeforeActionItems = narrative.split("## Action Items")[0] ?? "";
     const briefingSection = narrative.match(/## Briefing\n([\s\S]*?)\n\n/u)?.[1] ?? "";
     const briefingBulletCount = briefingSection
       .split("\n")
       .filter((line) => line.startsWith("- ")).length;
-    const wordCountBeforeActionItems = countWordsExcludingHeadings(textBeforeActionItems);
 
     expect(briefingBulletCount).toBeLessThanOrEqual(MAX_BRIEFING_BULLETS);
-    expect(wordCountBeforeActionItems).toBeLessThanOrEqual(MAX_NARRATIVE_WORDS_BEFORE_ACTION_ITEMS);
     expect(narrative).not.toContain("!");
   });
 });
-
-function countWordsExcludingHeadings(value: string): number {
-  const withoutHeadings = value
-    .split("\n")
-    .filter((line) => !line.startsWith("#"))
-    .join(" ");
-
-  const words = withoutHeadings.match(/\S+/gu);
-
-  return words?.length ?? 0;
-}

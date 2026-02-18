@@ -3,8 +3,6 @@ import type { EmailMetadata } from "../domain/email-metadata.js";
 import { LOOKBACK_HOURS, MAX_ACTION_ITEMS, MAX_BRIEFING_BULLETS } from "./narrative-constants.js";
 
 const MAX_INSIGHT_BULLETS = 3;
-const MAX_SUMMARY_WORDS = 12;
-const MAX_ACTION_WORDS = 8;
 const SLANG_DENYLIST = ["asap", "btw", "gonna", "kinda", "lol"];
 
 type NarrativeAnalysisLike = {
@@ -108,10 +106,8 @@ export function formatUrgencySection(
 ): string {
   const lines = results
     .map(({ email, insight }) => {
-      const summary = truncateWords(sanitizeNarrativeText(insight.summary), MAX_SUMMARY_WORDS);
-      const action = insight.action
-        ? ` (${truncateWords(sanitizeNarrativeText(insight.action), MAX_ACTION_WORDS)})`
-        : "";
+      const summary = sanitizeNarrativeText(insight.summary);
+      const action = insight.action ? ` (${sanitizeNarrativeText(insight.action)})` : "";
 
       return `- ${extractSenderName(email.from)}: ${summary}${action}`;
     })
@@ -126,7 +122,7 @@ export function formatActionItemsSection(actionItems: string[]): string {
   }
 
   const lines = actionItems
-    .map((actionItem) => `- ${truncateWords(sanitizeNarrativeText(actionItem), MAX_ACTION_WORDS)}`)
+    .map((actionItem) => `- ${sanitizeNarrativeText(actionItem)}`)
     .join("\n");
 
   return `## Action Items\n\n${lines}`;
@@ -171,16 +167,6 @@ function sanitizeNarrativeText(value: string): string {
   }
 
   return sanitized.replace(/\s+/gu, " ").trim();
-}
-
-function truncateWords(value: string, maxWords: number): string {
-  const words = value.split(/\s+/u).filter((word) => word.length > 0);
-
-  if (words.length <= maxWords) {
-    return value;
-  }
-
-  return `${words.slice(0, maxWords).join(" ")}...`;
 }
 
 function pluralize(count: number, noun: string): string {
