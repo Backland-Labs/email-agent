@@ -15,7 +15,7 @@ describe("agent endpoint runtime coverage", () => {
     const runLogger = createRunLogger();
     const request = new Request("http://localhost:3001/agent", { method: "POST" });
 
-    const { events, streamStarted, restore } = createFailingReadableStream({
+    const { events, streamStarted, restore } = await createFailingReadableStream({
       shouldFail: (enqueueIndex) =>
         enqueueIndex === 2 ? new Error("Storage unavailable") : undefined
     });
@@ -73,7 +73,7 @@ describe("agent endpoint runtime coverage", () => {
       Promise.resolve(createInsight("A business message.", "business", "action_required"))
     );
 
-    const { events, streamStarted, restore } = createFailingReadableStream({
+    const { events, streamStarted, restore } = await createFailingReadableStream({
       shouldFail: (enqueueIndex) =>
         enqueueIndex === 4 ? new Error("Controller is already closed") : undefined
     });
@@ -126,7 +126,7 @@ describe("agent endpoint runtime coverage", () => {
       Promise.resolve(createInsight("A newsletter.", "newsletter_or_spam", "fyi"))
     );
 
-    const { events, streamStarted, restore } = createFailingReadableStream({
+    const { events, streamStarted, restore } = await createFailingReadableStream({
       shouldFail: (enqueueIndex) =>
         enqueueIndex === 5 ? new Error("Controller is already closed") : undefined
     });
@@ -180,7 +180,7 @@ describe("agent endpoint runtime coverage", () => {
       Promise.resolve(createInsight("A monthly update.", "business", "fyi"))
     );
 
-    const { events, streamStarted, restore } = createFailingReadableStream({
+    const { events, streamStarted, restore } = await createFailingReadableStream({
       shouldFail: (enqueueIndex) =>
         enqueueIndex === 5 ? new Error("Controller is already closed") : undefined
     });
@@ -221,7 +221,7 @@ describe("agent endpoint runtime coverage", () => {
 
     dependencies.fetchUnreadEmails = vi.fn(() => Promise.resolve([]));
 
-    const { events, streamStarted, restore } = createFailingReadableStream({
+    const { events, streamStarted, restore } = await createFailingReadableStream({
       shouldFail: () => undefined,
       shouldFailClose: true
     });

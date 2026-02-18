@@ -5,6 +5,7 @@ import {
   handleNarrativeEndpoint,
   type NarrativeEndpointDependencies
 } from "../../src/handlers/narrative-endpoint.js";
+import { acquireReadableStreamMutationLock } from "./readable-stream-mutation-lock.js";
 
 type Deferred<T> = {
   promise: Promise<T>;
@@ -131,6 +132,7 @@ async function flushAsyncWork(): Promise<void> {
 describe("narrative endpoint stream guards", () => {
   it("emits RUN_ERROR when enqueue fails with a non-closed error", async () => {
     const dependencies = createDependencies();
+    const releaseLock = await acquireReadableStreamMutationLock();
     const { restore } = installFailingReadableStream({
       shouldFail: (enqueueIndex) =>
         enqueueIndex === 2 ? new Error("Storage unavailable") : undefined
@@ -146,6 +148,7 @@ describe("narrative endpoint stream guards", () => {
       expect(body).not.toContain('"type":"RUN_FINISHED"');
     } finally {
       restore();
+      releaseLock();
     }
   });
 
@@ -159,6 +162,7 @@ describe("narrative endpoint stream guards", () => {
 
     dependencies.fetchUnreadEmails = vi.fn(() => pendingEmails.promise);
     process.on("unhandledRejection", onUnhandledRejection);
+    const releaseLock = await acquireReadableStreamMutationLock();
 
     try {
       const response = await handleNarrativeEndpoint(createRequest(), dependencies);
@@ -175,6 +179,7 @@ describe("narrative endpoint stream guards", () => {
       expect(dependencies.fetchUnreadEmails).toHaveBeenCalledTimes(1);
       expect(unhandledRejections).toEqual([]);
     } finally {
+      releaseLock();
       process.off("unhandledRejection", onUnhandledRejection);
     }
   });
