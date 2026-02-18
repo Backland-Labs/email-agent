@@ -276,7 +276,7 @@ describe("narrative runtime helpers", () => {
     });
 
     expect(withResults).toContain("## Updates");
-    expect(withResults).toContain("- Alice: Update (Draft a response)");
+    expect(withResults).toContain("- Alice: Update\n  -> Draft a response");
   });
 
   it("falls back to raw sender value when sender name cannot be parsed", () => {

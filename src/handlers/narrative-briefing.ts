@@ -85,9 +85,13 @@ export function formatUrgencySection(
   const lines = results
     .map(({ email, insight }) => {
       const summary = sanitizeNarrativeText(insight.summary);
-      const action = insight.action ? ` (${sanitizeNarrativeText(insight.action)})` : "";
+      let line = `- ${extractSenderName(email.from)}: ${summary}`;
 
-      return `- ${extractSenderName(email.from)}: ${summary}${action}`;
+      if (insight.action) {
+        line += `\n  -> ${sanitizeNarrativeText(insight.action)}`;
+      }
+
+      return line;
     })
     .join("\n");
 
